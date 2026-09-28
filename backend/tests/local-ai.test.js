@@ -143,6 +143,7 @@ test('fallback recommendations differ by IP features and never use the legacy ge
 
 test('enabled Local AI queues attacker analysis through the local model and stores the result', async () => {
   let modelRequest = null;
+  let explanationMessages = [];
   const modelServer = http.createServer((req, res) => {
     if (req.url === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json' }).end('{"status":"ok"}');
@@ -196,7 +197,14 @@ test('enabled Local AI queues attacker analysis through the local model and stor
       requireAnalyst: (req, res, next) => ['admin', 'analyst'].includes(req.user?.role) ? next() : res.status(403).json({ error: 'Analyst access required' }),
       writeAuditLog: async () => {},
       zabbixApi: { getProblems: async () => ({ zabbix_connected: true, total: 1, problems: [{ eventid: 'event-1', name: 'Zabbix CPU high', host: 'test-host', severityName: 'High', timestamp: '2026-09-28T12:00:00.000Z' }] }) },
-      explainChat: async () => ({ content: JSON.stringify({ summary: 'SSH attempts observed; model says T9999.', cause_hints: ['Potential technique T9999', 'Review port 22 evidence.'], mitre: 'T9999' }) }),
+      explainChat: async ({ messages }) => {
+        explanationMessages = messages;
+        return { content: JSON.stringify({ summary: 'SSH attempts observed; model says T9999.', cause_hints: ['Potential technique T9999', 'Review port 22 evidence.'], mitre: 'T9999' }) };
+      },
+      intelFetchOptions: {
+        lookup: async () => [{ address: '93.184.216.34', family: 4 }],
+        request: async () => ({ statusCode: 200, headers: { 'content-type': 'text/plain' }, body: Buffer.from('CVE reference feed content') }),
+      },
     });
     await localAi.init();
     await localAi.init();
@@ -219,6 +227,8 @@ test('enabled Local AI queues attacker analysis through the local model and stor
       const server = app.listen(0, '127.0.0.1', () => resolve(server));
     });
     const apiUrl = `http://127.0.0.1:${apiServer.address().port}/api/ai`;
+    const initialSettingsResponse = await fetch(`${apiUrl}/settings`);
+    assert.equal((await initialSettingsResponse.json()).settings.ai_intelligence, 'false');
 
     const enableResponse = await fetch(`${apiUrl}/settings`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -294,7 +304,51 @@ test('enabled Local AI queues attacker analysis through the local model and stor
     assert.equal((await zabbixExplanation.json()).mitre_technique, null);
     apiRole = 'viewer';
     assert.equal((await fetch(`${apiUrl}/explain/incident/incident-1`, { method: 'POST' })).status, 403);
+    assert.equal((await fetch(`${apiUrl}/intelligence`)).status, 200);
+    assert.equal((await fetch(`${apiUrl}/intelligence/sources`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: 'https://intel.example/feed' }),
+    })).status, 403);
+    assert.equal((await fetch(`${apiUrl}/intelligence/sync`, { method: 'POST' })).status, 403);
     apiRole = 'admin';
+    const sourceResponse = await fetch(`${apiUrl}/intelligence/sources`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: 'https://intel.example/feed', trust_tier: 'T1', source_type: 'general' }),
+    });
+    assert.equal(sourceResponse.status, 201);
+    const source = await sourceResponse.json();
+    assert.equal((await fetch(`${apiUrl}/intelligence/sources/${source.id}/validate`, { method: 'POST' })).status, 503);
+    const enableIntelligenceResponse = await fetch(`${apiUrl}/settings`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ settings: { ai_intelligence: true } }),
+    });
+    assert.equal(enableIntelligenceResponse.status, 200);
+    assert.equal((await fetch(`${apiUrl}/intelligence/sources/${source.id}/validate`, { method: 'POST' })).status, 200);
+    const activatedSource = await fetch(`${apiUrl}/intelligence/sources/${source.id}/activate`, { method: 'PUT' });
+    assert.equal(activatedSource.status, 200);
+    const intelCache = await fetch(`${apiUrl}/intelligence`);
+    const intelPayload = await intelCache.json();
+    assert.equal(intelPayload.records.length, 1);
+    assert.equal(intelPayload.records[0].content, 'CVE reference feed content');
+    assert.equal((await fetch(`${apiUrl}/intelligence/sync`, { method: 'POST' })).status, 200);
+    await fetch(`${apiUrl}/explain/incident/incident-1`, { method: 'POST' });
+    assert.doesNotMatch(JSON.stringify(explanationMessages), /CVE reference feed content/);
+    const t4SourceResponse = await fetch(`${apiUrl}/intelligence/sources`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: 'https://quarantine.example/feed', trust_tier: 'T4' }),
+    });
+    const t4Source = await t4SourceResponse.json();
+    await fetch(`${apiUrl}/intelligence/sources/${t4Source.id}/validate`, { method: 'POST' });
+    assert.equal((await fetch(`${apiUrl}/intelligence/sources/${t4Source.id}/activate`, { method: 'PUT' })).status, 409);
+    await fetch(`${apiUrl}/settings`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ settings: { ai_active: false } }),
+    });
+    assert.equal((await fetch(`${apiUrl}/intelligence/sync`, { method: 'POST' })).status, 503);
+    await fetch(`${apiUrl}/settings`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ settings: { ai_active: true } }),
+    });
     const historyResponse = await fetch(`${apiUrl}/history`);
     const history = await historyResponse.json();
     assert.equal(history.items.length, 3);

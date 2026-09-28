@@ -11,6 +11,14 @@ const { createAttackerFallback } = require('./fallback');
 const { answerFixedIntent, MAX_QUESTION_LENGTH } = require('./ask-brain');
 const { approveCase, findSimilarCases, initializeCaseMemory, readPendingCases, saveFeedbackCase } = require('./case-memory');
 const {
+  activateIntelSource,
+  addIntelSource,
+  archiveIntelSource,
+  initializeIntelligenceTables,
+  readIntelCache,
+  validateIntelSource,
+} = require('./intelligence');
+const {
   applyLearnedWeights,
   calibratePrediction,
   evaluatePendingPredictions,
@@ -77,6 +85,7 @@ const DEFAULT_SETTINGS = Object.freeze({
   ai_chat: 'false',
   ai_auto_analyze: 'false',
   ai_learning: 'false',
+  ai_intelligence: 'false',
   ai_reports: 'false',
   ai_telegram_enrich: 'false',
   ai_block_mode: 'off',
@@ -88,7 +97,7 @@ const DEFAULT_SETTINGS = Object.freeze({
 });
 
 const BOOLEAN_SETTINGS = new Set([
-  'ai_active', 'ai_analysis', 'ai_chat', 'ai_auto_analyze', 'ai_learning',
+  'ai_active', 'ai_analysis', 'ai_chat', 'ai_auto_analyze', 'ai_learning', 'ai_intelligence',
   'ai_reports', 'ai_telegram_enrich', 'ai_block_dryrun', 'ai_priority_pause',
 ]);
 const NUMBER_SETTINGS = {
@@ -145,7 +154,7 @@ function validateSettings(input) {
   return { updates };
 }
 
-function createLocalAi({ db, config, requireAdmin, requireAnalyst, writeAuditLog, zabbixApi = require('../zabbix-api'), explainChat = completeChat }) {
+function createLocalAi({ db, config, requireAdmin, requireAnalyst, writeAuditLog, zabbixApi = require('../zabbix-api'), explainChat = completeChat, intelFetchOptions = {} }) {
   const loopbackUrlAllowed = isLoopbackUrl(config.url);
 
   const router = express.Router();
@@ -618,6 +627,81 @@ function createLocalAi({ db, config, requireAdmin, requireAnalyst, writeAuditLog
     }
   });
 
+  router.get('/intelligence', async (req, res) => {
+    try {
+      const sources = await dbAll('SELECT id, url, exact_domain, source_type, trust_tier, state, last_fetched_at, last_error FROM ai_intel_sources ORDER BY id DESC LIMIT 100');
+      res.set('Cache-Control', 'no-store');
+      res.json({ sources, records: await readIntelCache(db) });
+    } catch (error) {
+      console.warn('[Local AI] intelligence cache read failed:', error.message);
+      res.status(503).json({ error: 'Cached intelligence is temporarily unavailable' });
+    }
+  });
+
+  router.post('/intelligence/sources', requireAdmin, async (req, res) => {
+    const { url, trust_tier: trustTier, source_type: sourceType } = req.body || {};
+    try {
+      const id = await addIntelSource(db, { url, trustTier, sourceType });
+      await writeAuditLog({ actor: req.user?.username || 'admin', actorIp: req.ip || 'unknown', action: 'AI_INTEL_SOURCE_ADDED', entity: String(id), details: { trust_tier: trustTier || 'T3', source_type: sourceType || 'general' } });
+      res.status(201).json({ success: true, id, state: 'new' });
+    } catch (error) {
+      res.status(error.code === 'SQLITE_CONSTRAINT' ? 409 : 400).json({ error: error.code === 'SQLITE_CONSTRAINT' ? 'Intelligence source already exists' : error.message });
+    }
+  });
+
+  router.post('/intelligence/sources/:id/validate', requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id < 1) return res.status(400).json({ error: 'A valid source ID is required' });
+    try {
+      const settings = await readSettings();
+      if (settings.ai_active !== 'true' || settings.ai_intelligence !== 'true') return res.status(503).json({ error: 'Intelligence sync is deactivated' });
+      const result = await validateIntelSource(db, id, intelFetchOptions);
+      await writeAuditLog({ actor: req.user?.username || 'admin', actorIp: req.ip || 'unknown', action: 'AI_INTEL_SOURCE_VALIDATED', entity: String(id), details: { state: result.state, offline: result.offline, quarantined: result.quarantined || false } });
+      res.json(result);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  router.put('/intelligence/sources/:id/activate', requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id < 1) return res.status(400).json({ error: 'A valid source ID is required' });
+    try {
+      if (!await activateIntelSource(db, id)) return res.status(409).json({ error: 'Only validated non-quarantined sources can be activated' });
+      await writeAuditLog({ actor: req.user?.username || 'admin', actorIp: req.ip || 'unknown', action: 'AI_INTEL_SOURCE_ACTIVATED', entity: String(id), details: {} });
+      res.json({ success: true, id, state: 'active' });
+    } catch (error) {
+      console.warn('[Local AI] intelligence source activation failed:', error.message);
+      res.status(503).json({ error: 'Intelligence source could not be activated' });
+    }
+  });
+
+  router.put('/intelligence/sources/:id/archive', requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id < 1) return res.status(400).json({ error: 'A valid source ID is required' });
+    try {
+      if (!await archiveIntelSource(db, id)) return res.status(409).json({ error: 'Only stale sources can be archived' });
+      await writeAuditLog({ actor: req.user?.username || 'admin', actorIp: req.ip || 'unknown', action: 'AI_INTEL_SOURCE_ARCHIVED', entity: String(id), details: {} });
+      res.json({ success: true, id, state: 'archived' });
+    } catch (error) {
+      console.warn('[Local AI] intelligence source archive failed:', error.message);
+      res.status(503).json({ error: 'Intelligence source could not be archived' });
+    }
+  });
+
+  router.post('/intelligence/sync', requireAdmin, async (req, res) => {
+    try {
+      const settings = await readSettings();
+      if (settings.ai_active !== 'true' || settings.ai_intelligence !== 'true') return res.status(503).json({ error: 'Intelligence sync is deactivated' });
+      const sources = await dbAll("SELECT id FROM ai_intel_sources WHERE state = 'active' ORDER BY id LIMIT 100");
+      const results = await Promise.all(sources.map(source => validateIntelSource(db, source.id, intelFetchOptions)));
+      res.json({ synced: results.length, results, cached_records: await readIntelCache(db) });
+    } catch (error) {
+      console.warn('[Local AI] intelligence sync failed:', error.message);
+      res.status(503).json({ error: 'Intelligence sync is temporarily unavailable' });
+    }
+  });
+
   router.put('/settings', requireAdmin, async (req, res) => {
     const input = req.body?.settings || req.body;
     const validation = validateSettings(input);
@@ -676,6 +760,7 @@ function createLocalAi({ db, config, requireAdmin, requireAnalyst, writeAuditLog
     await initializePredictorTables(db);
     await initializeAccuracyTables(db);
     await initializeCaseMemory(db);
+    await initializeIntelligenceTables(db);
     const timestamp = new Date().toISOString();
     for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
       await dbRun(

@@ -4,13 +4,14 @@
     ai_chat: 'Ask the Brain (fixed intents)',
     ai_auto_analyze: 'Live triage for HIGH/CRIT incidents (planned)',
     ai_learning: 'Learn from observed outcomes',
+    ai_intelligence: 'Threat intelligence sync',
     ai_reports: 'Nightly reports (planned)',
     ai_telegram_enrich: 'Telegram follow-up insights (planned)',
     ai_block_dryrun: 'Dry-run (policy gate planned)',
     ai_priority_pause: 'Pause background work during attack bursts (planned)',
   };
   const BOOLEAN_KEYS = Object.keys(SETTING_LABELS);
-  const IMPLEMENTED_FEATURES = new Set(['ai_analysis', 'ai_chat', 'ai_learning']);
+  const IMPLEMENTED_FEATURES = new Set(['ai_analysis', 'ai_chat', 'ai_learning', 'ai_intelligence']);
   const NUMBER_LABELS = {
     ai_timeout_sec: ['Timeout', 'seconds'],
     ai_max_tokens: ['Maximum tokens', 'tokens'],
@@ -204,6 +205,22 @@
         <ul class="aib-history-list" id="aibMetricsList"></ul>
         <ul class="aib-history-list" id="aibPendingCasesList"></ul>
       </section>
+      <section class="aib-history-panel" aria-labelledby="aibIntelHeading">
+        <h3 id="aibIntelHeading">Threat intelligence</h3>
+        <p class="aib-result-meta" id="aibIntelStatus" aria-live="polite">Loading cached sources...</p>
+        <form class="aib-analysis-form" id="aibIntelSourceForm">
+          <label for="aibIntelUrl">HTTPS source URL</label>
+          <input id="aibIntelUrl" type="url" maxlength="500" placeholder="https://example.org/feed" required>
+          <label for="aibIntelTier">Trust tier</label>
+          <select id="aibIntelTier"><option>T1</option><option>T2</option><option selected>T3</option><option>T4</option></select>
+          <label for="aibIntelType">Source type</label>
+          <select id="aibIntelType"><option value="general">General</option><option value="kev">KEV</option></select>
+          <button type="submit" class="aib-button aib-secondary" id="aibIntelAdd">Add source</button>
+          <button type="button" class="aib-button aib-secondary" id="aibIntelSync">Sync active</button>
+        </form>
+        <ul class="aib-history-list" id="aibIntelSources"></ul>
+        <ul class="aib-history-list" id="aibIntelRecords"></ul>
+      </section>
       <div class="aib-brain-empty"><strong>Local model analysis</strong><p>Analysis runs on the configured loopback llamafile server; on this CPU it may take up to 10 minutes. If the model is unavailable, a clearly labelled rule-based fallback is returned.</p><span>AI output is advisory and requires analyst review.</span></div>
     `;
     panel.querySelector('#aibBrainRefresh')?.addEventListener('click', loadStatus);
@@ -214,6 +231,43 @@
     panel.querySelector('#aibAskForm')?.addEventListener('submit', event => {
       event.preventDefault();
       askBrain(panel.querySelector('#aibAskQuestion').value.trim());
+    });
+    panel.querySelector('#aibIntelSourceForm')?.addEventListener('submit', async event => {
+      event.preventDefault();
+      const button = panel.querySelector('#aibIntelAdd');
+      button.disabled = true;
+      try {
+        const response = await request('/ai/intelligence/sources', {
+          method: 'POST',
+          body: JSON.stringify({
+            url: panel.querySelector('#aibIntelUrl').value.trim(),
+            trust_tier: panel.querySelector('#aibIntelTier').value,
+            source_type: panel.querySelector('#aibIntelType').value,
+          }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || 'Source could not be added.');
+        panel.querySelector('#aibIntelUrl').value = '';
+        await loadIntelligence();
+      } catch (error) {
+        panel.querySelector('#aibIntelStatus').textContent = error.message || 'Source could not be added.';
+      } finally {
+        updateRoleState();
+      }
+    });
+    panel.querySelector('#aibIntelSync')?.addEventListener('click', async () => {
+      const button = panel.querySelector('#aibIntelSync');
+      button.disabled = true;
+      try {
+        const response = await request('/ai/intelligence/sync', { method: 'POST' });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || 'Intelligence sync failed.');
+        await loadIntelligence();
+      } catch (error) {
+        panel.querySelector('#aibIntelStatus').textContent = error.message || 'Intelligence sync failed.';
+      } finally {
+        updateRoleState();
+      }
     });
     panel.querySelector('#aibCancelAnalysis')?.addEventListener('click', cancelAnalysis);
   }
@@ -236,6 +290,8 @@
     if (analyzeButton) analyzeButton.disabled = Boolean(activeJobId) || !['admin', 'analyst'].includes(document.getElementById('hUserRole')?.textContent.trim().toLowerCase()) || status?.active !== true || status?.settings?.ai_analysis !== 'true';
     const askButton = document.getElementById('aibAskButton');
     if (askButton) askButton.disabled = !['admin', 'analyst'].includes(document.getElementById('hUserRole')?.textContent.trim().toLowerCase()) || status?.active !== true || status?.settings?.ai_chat !== 'true';
+    const intelForm = document.getElementById('aibIntelSourceForm');
+    if (intelForm) intelForm.querySelectorAll('input, select, button').forEach(control => { control.disabled = !isAdmin() || !status?.enabled || (control.id === 'aibIntelSync' && (status?.active !== true || settings?.ai_intelligence !== 'true')); });
   }
 
   function fillSettings(values) {
@@ -510,6 +566,49 @@
     }
   }
 
+  async function loadIntelligence() {
+    const statusElement = document.getElementById('aibIntelStatus');
+    const sourcesList = document.getElementById('aibIntelSources');
+    const recordsList = document.getElementById('aibIntelRecords');
+    if (!statusElement || !sourcesList || !recordsList || !status?.enabled) return;
+    try {
+      const response = await request('/ai/intelligence');
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Cached intelligence unavailable.');
+      sourcesList.replaceChildren();
+      recordsList.replaceChildren();
+      statusElement.textContent = `${payload.sources?.length || 0} allowlisted source${payload.sources?.length === 1 ? '' : 's'} · cached data remains available offline`;
+      (payload.sources || []).forEach(source => {
+        const row = document.createElement('li');
+        appendTextElement(row, 'span', '', `${source.exact_domain} · ${source.source_type} · ${source.trust_tier} · ${source.state}`);
+        const addAction = (label, route, method) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'aib-button aib-secondary';
+          button.textContent = label;
+          button.disabled = !isAdmin() || (label === 'Validate' && (status?.active !== true || settings?.ai_intelligence !== 'true'));
+          button.addEventListener('click', async () => {
+            button.disabled = true;
+            const result = await request(route, { method });
+            const resultData = await result.json().catch(() => ({}));
+            if (!result.ok) statusElement.textContent = resultData.error || `${label} failed.`;
+            await loadIntelligence();
+          });
+          row.appendChild(button);
+        };
+        if (source.state === 'new') addAction('Validate', `/ai/intelligence/sources/${source.id}/validate`, 'POST');
+        if (source.state === 'validated') addAction('Activate', `/ai/intelligence/sources/${source.id}/activate`, 'PUT');
+        if (source.state === 'stale') addAction('Archive', `/ai/intelligence/sources/${source.id}/archive`, 'PUT');
+        sourcesList.appendChild(row);
+      });
+      (payload.records || []).forEach(record => {
+        appendTextElement(recordsList, 'li', '', `${record.source_type} · ${record.trust_tier} (${Math.round(record.trust_score * 100)}%) · ${record.state} · ${record.content}`);
+      });
+    } catch (error) {
+      statusElement.textContent = error.message || 'Cached intelligence unavailable.';
+    }
+  }
+
   async function analyzeAttacker(ip) {
     if (!ip || activeJobId || !status?.active || settings?.ai_analysis !== 'true') return;
     const result = document.getElementById('aibAnalysisResult');
@@ -633,7 +732,7 @@
       document.getElementById('aibQueueStatus').textContent = `Queue: ${statusData.queue?.pending || 0} pending / ${statusData.queue?.running || 0} running`;
       fillSettings(settingsData.settings || statusData.settings || {});
       window.dispatchEvent(new CustomEvent('aib-status-updated'));
-      await Promise.all([loadHistory(), loadPredictionMetrics()]);
+      await Promise.all([loadHistory(), loadPredictionMetrics(), loadIntelligence()]);
     } catch (error) {
       setStatus(error.message || 'AI status unavailable.', 'error');
     } finally {

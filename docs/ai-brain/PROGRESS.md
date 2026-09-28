@@ -177,6 +177,20 @@ Checks: full backend suite 60/60; JavaScript/HTML diagnostics clean; CRLF-aware 
 
 Commit/tag: pending Step 6.4 close-out.
 
-### Steps 6.5-8
+Commit/tag: `9c5d712` / `ai-step6.4`.
+
+### Step 6.5 - Threat Intelligence
+
+Status: Implemented; master AI and `ai_intelligence` must both be active before network sync. Default is OFF.
+
+Files: `backend/ai/intelligence.js`, `backend/ai/local-ai.js`, `backend/tests/intelligence.test.js`, `backend/tests/local-ai.test.js`, `Frontend/ai-brain.js`.
+
+Implemented: admins can add exact-host HTTPS sources and explicitly validate/activate them. DNS answers are checked and pinned to public addresses; credentials/custom ports, private/loopback/reserved IPs, off-domain redirects, unsupported content types, responses over 5 MB, and requests over 15 seconds are rejected. Redirects are limited to two on the exact source domain. Trust T1/T2/T3/T4 scores are .95/.8/.6/.25; T4 and instruction-like text are quarantined. Content is stored as data capped at 1,500 characters; cache reads do not fetch, KEV becomes stale after 7 days and other sources after 30, and admins can archive stale sources. Intelligence is not added to LLM prompts.
+
+Checks: full backend suite 62/62; syntax and whitespace checks pass; SSRF/lifecycle tests use mocks only; disabled-AI smoke returned health/login 200 and AI route 404; all 21 legacy live-table counts match baseline and users=3.
+
+Commit/tag: pending Step 6.5 close-out.
+
+### Steps 6.6-8
 
 Status: Not started. Implement one scoped sub-step at a time; update this log after each verified commit/tag.
