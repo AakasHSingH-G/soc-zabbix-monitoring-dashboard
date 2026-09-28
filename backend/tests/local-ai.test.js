@@ -87,6 +87,20 @@ test('analysis output is constrained to known values and safe text lengths', () 
   assert.equal(validateAnalysis({ stage: 'Unknown stage', severity: 'HIGH', confidence: 90 }), null);
 });
 
+test('narrative text strips IPs, commands, URLs and probabilities before display', () => {
+  const result = validateAnalysis({
+    stage: 'Detected',
+    severity: 'HIGH',
+    confidence: 80,
+    summary: 'SSH to 203.0.113.7 via curl https://example.com and score 87%. Follow bash -c "id" to inspect the server.',
+    evidence: ['login failure from 198.51.100.20'],
+    next_steps: [{ step: 'Review events', reason: 'Check source information.' }],
+    recommendations: ['investigate'],
+  });
+  assert.doesNotMatch(result.summary, /203\.0\.113\.7|198\.51\.100\.20|https?:\/\/|curl|bash -c|87%|score/);
+  assert.equal(result.summary.length > 0, true);
+});
+
 test('fallback uses incident corroboration and does not classify decoy page visits as confirmed compromise', () => {
   const events = ['/', '/', '/', '/', '/payment.html'].map(route => ({
     severity: 'LOW',

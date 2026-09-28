@@ -36,6 +36,19 @@ function cleanText(value, maximum) {
   return value.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, maximum);
 }
 
+function sanitizeNarrative(value, maximum = 600) {
+  if (typeof value !== 'string') return '';
+  let text = cleanText(value, maximum);
+  text = text
+    .replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, '[redacted ip]')
+    .replace(/https?:\/\/[^\s]+|www\.[^\s]+/gi, '[redacted URL]')
+    .replace(/\b(?:curl|wget|bash\s+-c|powershell\s+-enc|ssh|scp|nc|ncat|telnet|python|php|sh|sudo|cmd\.exe|\/bin\/(?:bash|sh))\b(?:\s+['"`][^\n\r]*['"`]?)?/gi, '[redacted command]')
+    .replace(/\d{1,3}%/g, '[redacted probability]')
+    .replace(/\b\d{1,2}\.\d{1,2}\b/g, '[redacted probability]')
+    .replace(/\bscore\b/gi, '');
+  return cleanText(text.replace(/\s{2,}/g, ' '), maximum).replace(/\s+[.,;:!?]+/g, match => match.trim());
+}
+
 function validateAnalysis(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const stage = STAGES.has(value.stage) ? value.stage : null;
@@ -52,8 +65,8 @@ function validateAnalysis(value) {
     stage,
     severity,
     confidence: Math.max(0, Math.min(100, Math.round(confidence))),
-    summary: cleanText(value.summary, 700),
-    evidence: Array.isArray(value.evidence) ? value.evidence.slice(0, 5).map(item => cleanText(item, 220)).filter(Boolean) : [],
+    summary: sanitizeNarrative(value.summary, 700),
+    evidence: Array.isArray(value.evidence) ? value.evidence.slice(0, 5).map(item => sanitizeNarrative(item, 220)).filter(Boolean) : [],
     next_steps: nextSteps,
     recommendations: Array.isArray(value.recommendations) ? [...new Set(value.recommendations.filter(item => RECOMMENDATIONS.has(item)))].slice(0, 5) : [],
   };
@@ -76,7 +89,7 @@ function groundAnalysis(analysis, events = [], incidents = []) {
   if (pageOnly && frequencyOnlyIncident && SEVERITY_RANK[analysis.severity] > SEVERITY_RANK[eventSeverity]) {
     analysis.severity = eventSeverity;
     analysis.confidence = Math.min(analysis.confidence, 50);
-    analysis.summary = `Direct evidence contains only ${eventSeverity} decoy page-view events. The linked incident is frequency-based and does not prove malicious intent, compromise, or submitted data.`;
+    analysis.summary = sanitizeNarrative(`Direct evidence contains only ${eventSeverity} decoy page-view events. The linked incident is frequency-based and does not prove malicious intent, compromise, or submitted data.`);
     analysis.recommendations = analysis.recommendations.filter(item => !['rate_limit', 'manual_block_review'].includes(item));
     if (!analysis.recommendations.includes('monitor')) analysis.recommendations.unshift('monitor');
   }
@@ -84,4 +97,4 @@ function groundAnalysis(analysis, events = [], incidents = []) {
   return analysis;
 }
 
-module.exports = { STAGES, SEVERITIES, RECOMMENDATIONS, ANALYSIS_SCHEMA, cleanText, validateAnalysis, groundAnalysis };
+module.exports = { STAGES, SEVERITIES, RECOMMENDATIONS, ANALYSIS_SCHEMA, cleanText, sanitizeNarrative, validateAnalysis, groundAnalysis };

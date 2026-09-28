@@ -6,7 +6,7 @@ const { buildAttackerContext } = require('./context-builders');
 const { createJobQueue } = require('./queue');
 const { completeChat } = require('./llm-client');
 const { extractJsonResponse } = require('./think-parser');
-const { ANALYSIS_SCHEMA, cleanText, groundAnalysis, validateAnalysis } = require('./validator');
+const { ANALYSIS_SCHEMA, cleanText, groundAnalysis, sanitizeNarrative, validateAnalysis } = require('./validator');
 const { createAttackerFallback } = require('./fallback');
 const { answerFixedIntent, MAX_QUESTION_LENGTH } = require('./ask-brain');
 const { approveCase, findSimilarCases, initializeCaseMemory, readPendingCases, saveFeedbackCase } = require('./case-memory');
@@ -385,9 +385,9 @@ function createLocalAi({ db, config, requireAdmin, requireAnalyst, writeAuditLog
         const value = extractJsonResponse(response.content);
         if (!value || typeof value.summary !== 'string' || !Array.isArray(value.cause_hints)) throw new Error('Invalid explanation JSON');
         explanation = {
-          summary: cleanText(value.summary, 600).replace(/\bT\d{4}(?:\.\d{3})?\b/gi, ''),
+          summary: sanitizeNarrative(value.summary, 600).replace(/\bT\d{4}(?:\.\d{3})?\b/gi, ''),
           cause_hints: value.cause_hints.slice(0, 4).filter(item => typeof item === 'string')
-            .map(item => cleanText(item, 220).replace(/\bT\d{4}(?:\.\d{3})?\b/gi, '')).filter(Boolean),
+            .map(item => sanitizeNarrative(item, 220).replace(/\bT\d{4}(?:\.\d{3})?\b/gi, '')).filter(Boolean),
           llm_used: true,
           fallback_reason: null,
         };

@@ -191,6 +191,38 @@ Checks: full backend suite 62/62; syntax and whitespace checks pass; SSRF/lifecy
 
 Commit/tag: pending Step 6.5 close-out.
 
-### Steps 6.6-8
+### Step 6.6 - Lessons and reports
 
-Status: Not started. Implement one scoped sub-step at a time; update this log after each verified commit/tag.
+Status: Implemented; pending-only lessons, SQL facts, and backup-first reset are admin-only and default-off. This step reused the existing learning tables and guard rails to keep the live SOC unchanged when AI is disabled.
+
+Files: `backend/ai/learning.js`, `backend/ai/local-ai.js`, `backend/tests/learning.test.js`, `backend/tests/local-ai.test.js`, `Frontend/ai-brain.js`.
+
+Implemented: nightly lesson candidates stay pending until there are enough distinct sources or IPs, versioning keeps older lessons reviewable, admin approve/reject/retire is enforced, tuning suggestions are never auto-applied, daily/weekly reports generate SQL-driven FACT / ANALYSIS / RECOMMENDATION output, and learning export/reset include backup-first behavior.
+
+Checks: full backend suite 65/65; focused API tests pass for lessons, reports, export and reset; disabled-AI smoke returned health/login 200 and AI route 404; all 21 legacy live-table counts match baseline and users=3.
+
+Commit/tag: `f0a768e` / `ai-step6.8`.
+
+### Step 6.7 - Live triage + Telegram enrichment
+
+Status: Implemented as a dry-run policy recommendation path only; the normal Telegram alert flow remains immediate and unchanged.
+
+Files: `backend/ai/local-ai.js`, `backend/tests/local-ai.test.js`.
+
+Implemented: event-driven triage recommendation is asynchronous-only after an event is stored, respects `ai_telegram_enrich`, and records a recommendation audit without calling the real block engine. The standard Telegram send path remains untouched; follow-up enrichment is bounded and default-off.
+
+Checks: full backend suite 65/65; triage route test passes for suggestion/dry-run behavior; disabled-AI smoke returned health/login 200 and AI route 404; legacy counts unchanged and users remain at 3.
+
+Commit/tag: `f0a768e` / `ai-step6.8`.
+
+### Step 6.9 - LLM narrative layer
+
+Status: Implemented; the deterministic prediction is rendered before any narrative, and narrative text is sanitized before it reaches the UI.
+
+Files: `backend/ai/validator.js`, `backend/ai/local-ai.js`, `backend/tests/local-ai.test.js`.
+
+Implemented: narrative sanitization strips IPs, commands, URLs, and percentage probabilities from model text before display. The deterministic predictor result remains authoritative; model narrative is appended only as constrained text and never overwrites probabilities or causes a block action.
+
+Checks: full backend suite 66/66; targeted narrative regression passes; syntax checks pass; disabled-AI smoke returned health/login 200 and AI route 404; legacy counts unchanged and users remain at 3.
+
+Commit/tag: pending final local commit and tag.
