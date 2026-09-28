@@ -89,6 +89,14 @@ Checks: llamafile help inspected; already-running model verified healthy and bou
 
 Commit/tag: pending. Open issue: manually run bounded P1 measurement and record first-delta, completion rate, and peak RSS before choosing context/token/event defaults.
 
-### Steps 3-8
+### Step 3 - Complete P3b
+
+Status: Complete using the already-implemented P3b work from Commit A; no duplicate predictor rewrite was needed.
+
+Verified: fallback reason persistence/display and engine metadata in `backend/ai/local-ai.js` and `Frontend/ai-brain.js`; minimum-event message and feature signature output in `backend/ai/fallback.js`; legacy history labeling in UI; T1 regression in `backend/tests/local-ai.test.js` proves different recommendation lists and rejects the old generic copy.
+
+Checks: full suite 49/49; frontend/backend syntax checks pass; disabled-AI smoke passes on a fresh temporary DB (health, fake login, AI 404); live DB users=3 and analyses=3. Commit/tag: pending.
+
+### Steps 4-8
 
 Status: Not started. Update after each completed step with files, tests, commit/tag, and open issues.
