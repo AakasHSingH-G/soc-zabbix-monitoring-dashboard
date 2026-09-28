@@ -19,6 +19,18 @@ const {
   validateIntelSource,
 } = require('./intelligence');
 const {
+  exportLearning,
+  generateNightlyLessons,
+  generateReport,
+  generateTuningSuggestion,
+  initializeLearningTables,
+  listLearningItems,
+  resetLearning,
+  reviewLesson,
+  reviewTuningSuggestion,
+  runScheduledLearning,
+} = require('./learning');
+const {
   applyLearnedWeights,
   calibratePrediction,
   evaluatePendingPredictions,
@@ -154,7 +166,7 @@ function validateSettings(input) {
   return { updates };
 }
 
-function createLocalAi({ db, config, requireAdmin, requireAnalyst, writeAuditLog, zabbixApi = require('../zabbix-api'), explainChat = completeChat, intelFetchOptions = {} }) {
+function createLocalAi({ db, config, requireAdmin, requireAnalyst, writeAuditLog, zabbixApi = require('../zabbix-api'), explainChat = completeChat, intelFetchOptions = {}, learningBackupDir }) {
   const loopbackUrlAllowed = isLoopbackUrl(config.url);
 
   const router = express.Router();
@@ -162,6 +174,7 @@ function createLocalAi({ db, config, requireAdmin, requireAnalyst, writeAuditLog
   const activeJobsByIp = new Map();
   let initialized = false;
   let consecutiveProviderFailures = 0;
+  let learningTimer = null;
 
   function dbAll(sql, params = []) {
     return new Promise((resolve, reject) => db.all(sql, params, (error, rows) => error ? reject(error) : resolve(rows || [])));
@@ -185,6 +198,27 @@ function createLocalAi({ db, config, requireAdmin, requireAnalyst, writeAuditLog
       if (ALLOWED_SETTINGS.has(row.setting_key)) settings[row.setting_key] = row.setting_value;
     });
     return settings;
+  }
+
+  async function writeBlockDecisionAudit({ ip, actor, mode, dryRun, recommendation, severity, reason }) {
+    await dbRun(
+      `CREATE TABLE IF NOT EXISTS ai_audit (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        actor TEXT NOT NULL,
+        target_ip TEXT NOT NULL,
+        decision TEXT NOT NULL,
+        mode TEXT NOT NULL,
+        dry_run INTEGER NOT NULL,
+        severity TEXT,
+        reason TEXT,
+        created_at TEXT NOT NULL
+      )`
+    );
+    await dbRun(
+      `INSERT INTO ai_audit (actor, target_ip, decision, mode, dry_run, severity, reason, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [actor || 'system', ip, recommendation || 'manual_review', mode || 'off', dryRun ? 1 : 0, severity || 'LOW', reason || 'AI policy recommendation', new Date().toISOString()]
+    );
   }
 
   async function providerStatus() {
@@ -371,6 +405,61 @@ function createLocalAi({ db, config, requireAdmin, requireAnalyst, writeAuditLog
       fallback_reason: explanation.fallback_reason,
     };
   }
+
+  router.post('/triage/:ip', requireAnalyst, async (req, res) => {
+    const ip = String(req.params.ip || '').trim();
+    if (net.isIP(ip) === 0) return res.status(400).json({ error: 'A valid IP address is required' });
+
+    try {
+      const settings = await readSettings();
+      if (settings.ai_active !== 'true' || settings.ai_analysis !== 'true' || settings.ai_auto_analyze !== 'true') {
+        return res.status(503).json({ ai: 'deactivated', fallback_reason: 'ai_disabled', error: 'Live triage is deactivated' });
+      }
+      const context = await buildAttackerContext(db, ip);
+      if (!context.events.length && !context.incidents.length) {
+        return res.status(404).json({ error: 'No stored security context was found for this IP' });
+      }
+      const severityOrder = ['INFO', 'LOW', 'MED', 'HIGH', 'CRIT', 'DISASTER'];
+      const severityValues = [...new Set([
+        ...(context.events || []).map(item => String(item.severity || 'LOW').toUpperCase()),
+        ...(context.incidents || []).map(item => String(item.severity || 'LOW').toUpperCase()),
+      ])];
+      const highestSeverity = severityValues.sort((left, right) => severityOrder.indexOf(right) - severityOrder.indexOf(left))[0] || 'LOW';
+      const campaign = await findCampaignSiblings(db, ip, context.events);
+      const [priors, mitreMap] = await Promise.all([readPlaybookPriors(db), readMitreMap(db)]);
+      const prediction = predictNextAttacks(ip, context.events, context.incidents, campaign, { priors, mitreMap });
+      const recommendation = settings.ai_block_mode === 'off' ? 'manual_review' : settings.ai_block_mode === 'auto_temp' ? 'temporary_block_candidate' : 'suggest_block';
+      const dryRun = settings.ai_block_dryrun === 'true' || settings.ai_block_mode === 'suggest';
+      const narrative = [
+        `${highestSeverity} severity activity detected for ${ip}.`,
+        `${context.events.length || 0} security events and ${context.incidents.length || 0} incidents were correlated in the current telemetry window.`,
+        `Recommendation: ${settings.ai_block_mode === 'off' ? 'manual review only' : settings.ai_block_mode === 'auto_temp' ? 'auto temporary block candidate' : 'block suggestion only'}.`,
+        `${dryRun ? 'Dry-run is enabled; no block action is executed.' : 'Dry-run is disabled; this would be a policy decision outside the current no-side-effect path.'}`,
+      ].join(' ');
+      await writeBlockDecisionAudit({
+        ip,
+        actor: req.user?.username || 'analyst',
+        mode: settings.ai_block_mode,
+        dryRun,
+        recommendation,
+        severity: highestSeverity,
+        reason: 'AI policy recommendation only',
+      });
+      res.json({
+        ip,
+        severity: highestSeverity,
+        signal_count: context.events.length || 0,
+        incident_count: context.incidents.length || 0,
+        block_mode: settings.ai_block_mode,
+        dry_run: dryRun,
+        narrative,
+        recommendation,
+      });
+    } catch (error) {
+      console.warn('[Local AI] live triage failed:', error.message);
+      res.status(503).json({ error: 'Live triage is temporarily unavailable' });
+    }
+  });
 
   router.post('/analyze/attacker/:ip', requireAnalyst, async (req, res) => {
     const ip = String(req.params.ip || '').trim();
@@ -702,6 +791,73 @@ function createLocalAi({ db, config, requireAdmin, requireAnalyst, writeAuditLog
     }
   });
 
+  router.get('/lessons', requireAdmin, async (req, res) => {
+    try { res.json(await listLearningItems(db)); }
+    catch (error) { console.warn('[Local AI] lessons read failed:', error.message); res.status(503).json({ error: 'Learning items are temporarily unavailable' }); }
+  });
+
+  router.post('/lessons/generate', requireAdmin, async (req, res) => {
+    try {
+      const settings = await readSettings();
+      if (settings.ai_active !== 'true' || settings.ai_reports !== 'true') return res.status(503).json({ error: 'Lessons and reports are deactivated' });
+      res.json(await generateNightlyLessons(db));
+    } catch (error) { console.warn('[Local AI] lesson generation failed:', error.message); res.status(503).json({ error: 'Lesson generation is temporarily unavailable' }); }
+  });
+
+  router.post('/lessons/tuning/generate', requireAdmin, async (req, res) => {
+    try {
+      const settings = await readSettings();
+      if (settings.ai_active !== 'true' || settings.ai_reports !== 'true') return res.status(503).json({ error: 'Lessons and reports are deactivated' });
+      res.json(await generateTuningSuggestion(db));
+    } catch (error) { console.warn('[Local AI] tuning suggestion failed:', error.message); res.status(503).json({ error: 'Tuning suggestion is temporarily unavailable' }); }
+  });
+
+  router.put('/lessons/:id/:decision', requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id < 1 || !['approve', 'reject', 'retire'].includes(req.params.decision)) return res.status(400).json({ error: 'Invalid lesson action' });
+    try {
+      const changed = await reviewLesson(db, id, req.params.decision, req.user?.username || 'admin');
+      if (!changed) return res.status(409).json({ error: 'Lesson is not in a state that supports this action' });
+      await writeAuditLog({ actor: req.user?.username || 'admin', actorIp: req.ip || 'unknown', action: `AI_LESSON_${req.params.decision.toUpperCase()}`, entity: String(id), details: {} });
+      res.json({ success: true, id, decision: req.params.decision });
+    } catch (error) { res.status(error.message.includes('limit') ? 409 : 503).json({ error: error.message }); }
+  });
+
+  router.put('/lessons/tuning/:id/:decision', requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id < 1 || !['approved', 'rejected', 'retired'].includes(req.params.decision)) return res.status(400).json({ error: 'Invalid tuning action' });
+    try {
+      const changed = await reviewTuningSuggestion(db, id, req.params.decision, req.user?.username || 'admin');
+      if (!changed) return res.status(409).json({ error: 'Tuning suggestion is not pending' });
+      await writeAuditLog({ actor: req.user?.username || 'admin', actorIp: req.ip || 'unknown', action: 'AI_TUNING_SUGGESTION_REVIEWED', entity: String(id), details: { decision: req.params.decision } });
+      res.json({ success: true, id, decision: req.params.decision });
+    } catch (error) { res.status(503).json({ error: 'Tuning suggestion could not be reviewed' }); }
+  });
+
+  router.get('/reports/:period', requireAdmin, async (req, res) => {
+    try {
+      const settings = await readSettings();
+      if (settings.ai_active !== 'true' || settings.ai_reports !== 'true') return res.status(503).json({ error: 'Lessons and reports are deactivated' });
+      res.json(await generateReport(db, req.params.period));
+    } catch (error) { res.status(400).json({ error: error.message }); }
+  });
+
+  router.get('/learning/export', requireAdmin, async (req, res) => {
+    try {
+      res.set('Content-Type', 'application/json');
+      res.set('Content-Disposition', 'attachment; filename="soc-ai-learning-export.json"');
+      res.json(await exportLearning(db));
+    } catch (error) { console.warn('[Local AI] learning export failed:', error.message); res.status(503).json({ error: 'Learning export is temporarily unavailable' }); }
+  });
+
+  router.post('/learning/reset', requireAdmin, async (req, res) => {
+    try {
+      const result = await resetLearning(db, { backupDir: learningBackupDir });
+      await writeAuditLog({ actor: req.user?.username || 'admin', actorIp: req.ip || 'unknown', action: 'AI_LEARNING_RESET', entity: 'derived-learning', details: { backup_created: true } });
+      res.json({ success: true, ...result });
+    } catch (error) { console.warn('[Local AI] learning reset failed:', error.message); res.status(503).json({ error: 'Learning reset failed; data was not cleared unless its backup completed' }); }
+  });
+
   router.put('/settings', requireAdmin, async (req, res) => {
     const input = req.body?.settings || req.body;
     const validation = validateSettings(input);
@@ -761,6 +917,7 @@ function createLocalAi({ db, config, requireAdmin, requireAnalyst, writeAuditLog
     await initializeAccuracyTables(db);
     await initializeCaseMemory(db);
     await initializeIntelligenceTables(db);
+    await initializeLearningTables(db);
     const timestamp = new Date().toISOString();
     for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
       await dbRun(
@@ -779,6 +936,17 @@ function createLocalAi({ db, config, requireAdmin, requireAnalyst, writeAuditLog
       [timestamp]
     );
     initialized = true;
+    if (!learningTimer) {
+      learningTimer = setInterval(async () => {
+        try {
+          const settings = await readSettings();
+          if (settings.ai_active === 'true' && settings.ai_reports === 'true') await runScheduledLearning(db, new Date());
+        } catch (error) {
+          console.warn('[Local AI] scheduled learning run failed:', error.message);
+        }
+      }, 60_000);
+      learningTimer.unref?.();
+    }
   }
 
   return { router, init, get initialized() { return initialized; } };

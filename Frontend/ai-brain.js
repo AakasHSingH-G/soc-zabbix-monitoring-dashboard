@@ -5,13 +5,13 @@
     ai_auto_analyze: 'Live triage for HIGH/CRIT incidents (planned)',
     ai_learning: 'Learn from observed outcomes',
     ai_intelligence: 'Threat intelligence sync',
-    ai_reports: 'Nightly reports (planned)',
+    ai_reports: 'Lessons and reports',
     ai_telegram_enrich: 'Telegram follow-up insights (planned)',
     ai_block_dryrun: 'Dry-run (policy gate planned)',
     ai_priority_pause: 'Pause background work during attack bursts (planned)',
   };
   const BOOLEAN_KEYS = Object.keys(SETTING_LABELS);
-  const IMPLEMENTED_FEATURES = new Set(['ai_analysis', 'ai_chat', 'ai_learning', 'ai_intelligence']);
+  const IMPLEMENTED_FEATURES = new Set(['ai_analysis', 'ai_chat', 'ai_learning', 'ai_intelligence', 'ai_reports']);
   const NUMBER_LABELS = {
     ai_timeout_sec: ['Timeout', 'seconds'],
     ai_max_tokens: ['Maximum tokens', 'tokens'],
@@ -221,6 +221,20 @@
         <ul class="aib-history-list" id="aibIntelSources"></ul>
         <ul class="aib-history-list" id="aibIntelRecords"></ul>
       </section>
+      <section class="aib-history-panel" id="aibLessonsPanel" aria-labelledby="aibLessonsHeading">
+        <h3 id="aibLessonsHeading">Lessons and reports</h3>
+        <p class="aib-result-meta" id="aibLessonsStatus" aria-live="polite">Loading learning items...</p>
+        <div class="aib-inline-fields">
+          <button type="button" class="aib-button aib-secondary" id="aibGenerateLessons">Generate lesson candidates</button>
+          <button type="button" class="aib-button aib-secondary" id="aibGenerateTuning">Generate tuning suggestions</button>
+          <button type="button" class="aib-button aib-secondary" data-report="daily">Daily report</button>
+          <button type="button" class="aib-button aib-secondary" data-report="weekly">Weekly report</button>
+          <button type="button" class="aib-button aib-secondary" id="aibLearningExport">Export learning</button>
+          <button type="button" class="aib-button aib-secondary" id="aibLearningReset">Reset learned state</button>
+        </div>
+        <ul class="aib-history-list" id="aibLessonsList"></ul>
+        <ul class="aib-history-list" id="aibTuningList"></ul>
+      </section>
       <div class="aib-brain-empty"><strong>Local model analysis</strong><p>Analysis runs on the configured loopback llamafile server; on this CPU it may take up to 10 minutes. If the model is unavailable, a clearly labelled rule-based fallback is returned.</p><span>AI output is advisory and requires analyst review.</span></div>
     `;
     panel.querySelector('#aibBrainRefresh')?.addEventListener('click', loadStatus);
@@ -269,6 +283,33 @@
         updateRoleState();
       }
     });
+    panel.querySelector('#aibGenerateLessons')?.addEventListener('click', () => runLearningAction('/ai/lessons/generate', 'POST'));
+    panel.querySelector('#aibGenerateTuning')?.addEventListener('click', () => runLearningAction('/ai/lessons/tuning/generate', 'POST'));
+    panel.querySelectorAll('[data-report]').forEach(button => button.addEventListener('click', async () => {
+      try {
+        const response = await request(`/ai/reports/${button.dataset.report}`);
+        const report = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(report.error || 'Report unavailable.');
+        panel.querySelector('#aibLessonsStatus').textContent = `FACT ${JSON.stringify(report.FACT)} · ANALYSIS ${report.ANALYSIS} · RECOMMENDATION ${report.RECOMMENDATION}`;
+      } catch (error) { panel.querySelector('#aibLessonsStatus').textContent = error.message || 'Report unavailable.'; }
+    }));
+    panel.querySelector('#aibLearningExport')?.addEventListener('click', async () => {
+      const response = await request('/ai/learning/export');
+      if (!response.ok) return;
+      const blob = await response.blob();
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'soc-ai-learning-export.json';
+      link.click();
+      URL.revokeObjectURL(link.href);
+    });
+    panel.querySelector('#aibLearningReset')?.addEventListener('click', async () => {
+      if (!window.confirm('Back up and reset derived learning data? Analyst feedback and SOC history will remain.')) return;
+      const response = await request('/ai/learning/reset', { method: 'POST' });
+      const result = await response.json().catch(() => ({}));
+      panel.querySelector('#aibLessonsStatus').textContent = response.ok ? `Learned state backed up to ${result.backup_path}` : result.error || 'Learning reset failed.';
+      if (response.ok) await loadLearning();
+    });
     panel.querySelector('#aibCancelAnalysis')?.addEventListener('click', cancelAnalysis);
   }
 
@@ -292,6 +333,13 @@
     if (askButton) askButton.disabled = !['admin', 'analyst'].includes(document.getElementById('hUserRole')?.textContent.trim().toLowerCase()) || status?.active !== true || status?.settings?.ai_chat !== 'true';
     const intelForm = document.getElementById('aibIntelSourceForm');
     if (intelForm) intelForm.querySelectorAll('input, select, button').forEach(control => { control.disabled = !isAdmin() || !status?.enabled || (control.id === 'aibIntelSync' && (status?.active !== true || settings?.ai_intelligence !== 'true')); });
+    const learningControls = document.getElementById('aibLessonsPanel');
+    if (learningControls) {
+      learningControls.hidden = !isAdmin();
+      learningControls.querySelectorAll('button').forEach(control => {
+        control.disabled = !isAdmin() || !status?.enabled || (['aibGenerateLessons', 'aibGenerateTuning'].includes(control.id) || control.hasAttribute('data-report')) && (status?.active !== true || settings?.ai_reports !== 'true');
+      });
+    }
   }
 
   function fillSettings(values) {
@@ -609,6 +657,67 @@
     }
   }
 
+  async function runLearningAction(route, method) {
+    const statusElement = document.getElementById('aibLessonsStatus');
+    try {
+      const response = await request(route, { method });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || 'Learning task failed.');
+      statusElement.textContent = result.created === false ? 'Not enough feedback sources yet.' : 'Learning candidate created and left pending review.';
+      await loadLearning();
+    } catch (error) { statusElement.textContent = error.message || 'Learning task failed.'; }
+  }
+
+  async function loadLearning() {
+    const statusElement = document.getElementById('aibLessonsStatus');
+    const lessonsList = document.getElementById('aibLessonsList');
+    const tuningList = document.getElementById('aibTuningList');
+    if (!statusElement || !lessonsList || !tuningList || !status?.enabled || !isAdmin()) return;
+    try {
+      const response = await request('/ai/lessons');
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Learning items unavailable.');
+      lessonsList.replaceChildren();
+      tuningList.replaceChildren();
+      (payload.lessons || []).forEach(lesson => {
+        const row = document.createElement('li');
+        appendTextElement(row, 'span', '', `Lesson v${lesson.version} · ${lesson.status} · ${lesson.lesson_text}`);
+        const action = lesson.status === 'pending' ? [['Approve', 'approve'], ['Reject', 'reject']] : lesson.status === 'active' ? [['Retire', 'retire']] : [];
+        action.forEach(([label, decision]) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'aib-button aib-secondary';
+          button.textContent = label;
+          button.disabled = !isAdmin();
+          button.addEventListener('click', async () => {
+            await request(`/ai/lessons/${lesson.id}/${decision}`, { method: 'PUT' });
+            await loadLearning();
+          });
+          row.appendChild(button);
+        });
+        lessonsList.appendChild(row);
+      });
+      (payload.suggestions || []).forEach(suggestion => {
+        const row = document.createElement('li');
+        appendTextElement(row, 'span', '', `Tuning v${suggestion.version} · ${suggestion.status} · ${suggestion.suggestion_text}`);
+        if (suggestion.status === 'pending') ['approved', 'rejected'].forEach(decision => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'aib-button aib-secondary';
+          button.textContent = decision === 'approved' ? 'Approve suggestion' : 'Reject suggestion';
+          button.disabled = !isAdmin();
+          button.addEventListener('click', async () => {
+            await request(`/ai/lessons/tuning/${suggestion.id}/${decision}`, { method: 'PUT' });
+            await loadLearning();
+          });
+          row.appendChild(button);
+        });
+        tuningList.appendChild(row);
+      });
+      statusElement.textContent = `${(payload.lessons || []).length} lesson versions · ${(payload.suggestions || []).length} tuning suggestions`;
+    } catch (error) { statusElement.textContent = error.message || 'Learning items unavailable.'; }
+  }
+
   async function analyzeAttacker(ip) {
     if (!ip || activeJobId || !status?.active || settings?.ai_analysis !== 'true') return;
     const result = document.getElementById('aibAnalysisResult');
@@ -732,7 +841,7 @@
       document.getElementById('aibQueueStatus').textContent = `Queue: ${statusData.queue?.pending || 0} pending / ${statusData.queue?.running || 0} running`;
       fillSettings(settingsData.settings || statusData.settings || {});
       window.dispatchEvent(new CustomEvent('aib-status-updated'));
-      await Promise.all([loadHistory(), loadPredictionMetrics(), loadIntelligence()]);
+      await Promise.all([loadHistory(), loadPredictionMetrics(), loadIntelligence(), loadLearning()]);
     } catch (error) {
       setStatus(error.message || 'AI status unavailable.', 'error');
     } finally {

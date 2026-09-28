@@ -1,7 +1,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
+const fs = require('node:fs/promises');
 const express = require('express');
+const os = require('node:os');
+const path = require('node:path');
 const sqlite3 = require('sqlite3').verbose();
 const { createLocalAi, ensureFallbackReasonColumn, isLoopbackUrl, validateSettings } = require('../ai/local-ai');
 const { extractJsonResponse } = require('../ai/think-parser');
@@ -174,11 +177,13 @@ test('enabled Local AI queues attacker analysis through the local model and stor
   const db = new sqlite3.Database(':memory:');
   const app = express();
   let apiServer;
+  const learningBackupDir = await fs.mkdtemp(path.join(os.tmpdir(), 'soc-ai-learning-api-'));
   try {
     await new Promise((resolve, reject) => db.exec(`
       CREATE TABLE security_events (id INTEGER PRIMARY KEY, src_ip TEXT, created_at TEXT, severity TEXT, dest_port INTEGER, rule TEXT, source TEXT, event_source TEXT, user_agent TEXT, description TEXT);
       CREATE TABLE incidents (id TEXT, source_ip TEXT, title TEXT, severity TEXT, rule TEXT, mitre TEXT, stage TEXT, evidence TEXT, created_at TEXT);
       CREATE TABLE blocks (id INTEGER PRIMARY KEY, ip TEXT, reason TEXT, action TEXT, mode TEXT, ttl_seconds INTEGER, created_at TEXT, expires_at TEXT, removed_at TEXT);
+      CREATE TABLE honey_captures (id INTEGER PRIMARY KEY, src_ip TEXT, dest_port INTEGER, protocol TEXT, created_at TEXT);
       INSERT INTO incidents VALUES ('incident-1', '203.0.113.7', 'SSH brute force', 'HIGH', 'SSH authentication', 'T9999', 'Credential Access', 'Repeated failed authentication', '2026-09-28T12:00:00.000Z');
       CREATE TABLE ai_analyses (
         id INTEGER PRIMARY KEY AUTOINCREMENT, attacker_ip TEXT NOT NULL, result_json TEXT NOT NULL,
@@ -196,6 +201,7 @@ test('enabled Local AI queues attacker analysis through the local model and stor
       requireAdmin: (req, res, next) => req.user?.role === 'admin' ? next() : res.status(403).json({ error: 'Administrator access required' }),
       requireAnalyst: (req, res, next) => ['admin', 'analyst'].includes(req.user?.role) ? next() : res.status(403).json({ error: 'Analyst access required' }),
       writeAuditLog: async () => {},
+      learningBackupDir,
       zabbixApi: { getProblems: async () => ({ zabbix_connected: true, total: 1, problems: [{ eventid: 'event-1', name: 'Zabbix CPU high', host: 'test-host', severityName: 'High', timestamp: '2026-09-28T12:00:00.000Z' }] }) },
       explainChat: async ({ messages }) => {
         explanationMessages = messages;
@@ -228,7 +234,9 @@ test('enabled Local AI queues attacker analysis through the local model and stor
     });
     const apiUrl = `http://127.0.0.1:${apiServer.address().port}/api/ai`;
     const initialSettingsResponse = await fetch(`${apiUrl}/settings`);
-    assert.equal((await initialSettingsResponse.json()).settings.ai_intelligence, 'false');
+    const initialSettings = (await initialSettingsResponse.json()).settings;
+    assert.equal(initialSettings.ai_intelligence, 'false');
+    assert.equal(initialSettings.ai_reports, 'false');
 
     const enableResponse = await fetch(`${apiUrl}/settings`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -271,6 +279,18 @@ test('enabled Local AI queues attacker analysis through the local model and stor
     const reanalysis = await runAnalysis();
     assert.equal(reanalysis.status, 'completed');
     assert.notEqual(reanalysis.result.analysis_id, job.result.analysis_id);
+    const triageResponse = await fetch(`${apiUrl}/triage/203.0.113.7`, { method: 'POST' });
+    assert.equal(triageResponse.status, 503);
+    await fetch(`${apiUrl}/settings`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ settings: { ai_auto_analyze: true, ai_block_mode: 'suggest', ai_block_dryrun: true } }),
+    });
+    const triageEnabledResponse = await fetch(`${apiUrl}/triage/203.0.113.7`, { method: 'POST' });
+    assert.equal(triageEnabledResponse.status, 200);
+    const triagePayload = await triageEnabledResponse.json();
+    assert.equal(triagePayload.block_mode, 'suggest');
+    assert.equal(triagePayload.dry_run, true);
+    assert.match(triagePayload.narrative, /Dry-run is enabled/);
     const askResponse = await fetch(`${apiUrl}/ask`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question: 'show recent incidents' }),
@@ -310,6 +330,10 @@ test('enabled Local AI queues attacker analysis through the local model and stor
       body: JSON.stringify({ url: 'https://intel.example/feed' }),
     })).status, 403);
     assert.equal((await fetch(`${apiUrl}/intelligence/sync`, { method: 'POST' })).status, 403);
+    assert.equal((await fetch(`${apiUrl}/lessons`)).status, 403);
+    assert.equal((await fetch(`${apiUrl}/reports/daily`)).status, 403);
+    assert.equal((await fetch(`${apiUrl}/learning/export`)).status, 403);
+    assert.equal((await fetch(`${apiUrl}/learning/reset`, { method: 'POST' })).status, 403);
     apiRole = 'admin';
     const sourceResponse = await fetch(`${apiUrl}/intelligence/sources`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -408,9 +432,41 @@ test('enabled Local AI queues attacker analysis through the local model and stor
     assert.equal(predictionCount, 3);
     const timelineCount = await new Promise((resolve, reject) => db.get('SELECT COUNT(*) AS total FROM ai_ip_timeline WHERE ip = ?', ['203.0.113.7'], (error, row) => error ? reject(error) : resolve(row.total)));
     assert.equal(timelineCount, 1);
+
+    assert.equal((await fetch(`${apiUrl}/lessons/generate`, { method: 'POST' })).status, 503);
+    await fetch(`${apiUrl}/settings`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ settings: { ai_reports: true } }),
+    });
+    for (let index = 0; index < 4; index += 1) {
+      await new Promise((resolve, reject) => db.run(
+        'INSERT INTO ai_analysis_feedback (analysis_id, username, verdict, note, created_at) VALUES (?, ?, ?, ?, ?)',
+        [job.result.analysis_id, `extra-analyst-${index}`, index % 2 ? 'wrong' : 'correct', 'private feedback note', new Date().toISOString()],
+        error => error ? reject(error) : resolve()
+      ));
+    }
+    const generatedLessonResponse = await fetch(`${apiUrl}/lessons/generate`, { method: 'POST' });
+    assert.equal(generatedLessonResponse.status, 200);
+    const generatedLesson = await generatedLessonResponse.json();
+    assert.equal(generatedLesson.created, true);
+    const lessons = await (await fetch(`${apiUrl}/lessons`)).json();
+    assert.equal(lessons.lessons[0].status, 'pending');
+    assert.equal((await fetch(`${apiUrl}/lessons/${generatedLesson.id}/approve`, { method: 'PUT' })).status, 200);
+    const tuning = await (await fetch(`${apiUrl}/lessons/tuning/generate`, { method: 'POST' })).json();
+    assert.equal(tuning.status, 'pending');
+    assert.equal((await fetch(`${apiUrl}/lessons/tuning/${tuning.id}/approved`, { method: 'PUT' })).status, 200);
+    assert.equal((await fetch(`${apiUrl}/reports/daily`)).status, 200);
+    assert.equal((await fetch(`${apiUrl}/reports/weekly`)).status, 200);
+    const learningExport = await (await fetch(`${apiUrl}/learning/export`)).text();
+    assert.doesNotMatch(learningExport, /Evidence matched\.|private feedback note/);
+    const resetResponse = await fetch(`${apiUrl}/learning/reset`, { method: 'POST' });
+    assert.equal(resetResponse.status, 200);
+    const resetPayload = await resetResponse.json();
+    assert.ok((await fs.stat(resetPayload.backup_path)).size > 0);
   } finally {
     if (apiServer) await new Promise(resolve => apiServer.close(resolve));
     await new Promise(resolve => modelServer.close(resolve));
     await new Promise(resolve => db.close(resolve));
+    await fs.rm(learningBackupDir, { recursive: true, force: true });
   }
 });
