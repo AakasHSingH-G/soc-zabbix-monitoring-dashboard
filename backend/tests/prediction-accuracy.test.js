@@ -8,7 +8,9 @@ const {
   calibratePrediction,
   evaluatePendingPredictions,
   initializeAccuracyTables,
+  readFeedbackMetrics,
   readPredictionMetrics,
+  recordAnalystFeedback,
   recordPrediction,
 } = require('../ai/accuracy');
 const { PRIORS } = require('../ai/predictor');
@@ -113,6 +115,31 @@ test('calibration uses smoothed observed frequency and learned weight caps at 0.
     const learned = await applyLearnedWeights(db, '198.51.100.10', prediction, true);
     assert.equal(learned.learned_weight, 0.7);
     assert.ok(learned.predictions.reduce((sum, item) => sum + item.probability, 0) <= 1.000001);
+  } finally {
+    await new Promise(resolve => db.close(resolve));
+  }
+});
+
+test('analyst feedback is unique per user and accuracy waits for 30 meaningful votes', async () => {
+  const db = openMemoryDatabase();
+  try {
+    await initializeAccuracyTables(db);
+    assert.equal((await readFeedbackMetrics(db)).message, 'Not enough data yet');
+    for (let index = 0; index < 12; index += 1) {
+      await recordAnalystFeedback(db, { analysisId: index + 1, username: 'analyst-a', verdict: 'correct' });
+    }
+    for (let index = 12; index < 30; index += 1) {
+      await recordAnalystFeedback(db, { analysisId: index + 1, username: 'analyst-a', verdict: 'wrong' });
+    }
+    await recordAnalystFeedback(db, { analysisId: 31, username: 'analyst-a', verdict: 'partial', note: 'Partly supported.' });
+    await recordAnalystFeedback(db, { analysisId: 32, username: 'analyst-a', verdict: 'false_positive' });
+    await assert.rejects(recordAnalystFeedback(db, { analysisId: 1, username: 'analyst-a', verdict: 'wrong' }), /UNIQUE constraint/);
+    await assert.rejects(recordAnalystFeedback(db, { analysisId: 33, username: 'analyst-a', verdict: 'wrong', note: 'x'.repeat(301) }), /300 characters/);
+    const metrics = await readFeedbackMetrics(db);
+    assert.equal(metrics.meaningful_feedback, 30);
+    assert.equal(metrics.accuracy, 0.4);
+    assert.equal(metrics.counts.partial, 1);
+    assert.equal(metrics.counts.false_positive, 1);
   } finally {
     await new Promise(resolve => db.close(resolve));
   }

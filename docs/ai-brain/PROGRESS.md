@@ -123,8 +123,20 @@ Implemented: predictions and outcomes persist separately; matured outcomes are e
 
 Checks: `npm test --prefix backend` passes 57/57; syntax checks pass for all touched JavaScript files; `git diff --check` passes. Local AI integration tests verify prediction recording, metrics response, and analyst-only access.
 
-Limitations: outcomes mature when analysis runs or the metrics endpoint is read; no background evaluator is scheduled. The learning toggle trains only from observed telemetry outcomes, not analyst feedback. Commit/tag: not committed; existing `ai-step4` tag verified.
+Limitations: outcomes mature when analysis runs or the metrics endpoint is read; no background evaluator is scheduled. The learning toggle trains only from observed telemetry outcomes, not analyst feedback. Commit/tag: `cf80666` / `ai-step5`.
 
-### Steps 6-8
+### Step 6.1 - Analyst Feedback
 
-Status: Not started. Update after each completed step with files, tests, commit/tag, and open issues.
+Status: Implemented; feedback is append-only and does not alter predictions or blocks.
+
+Files: `backend/ai/accuracy.js`, `backend/ai/local-ai.js`, `backend/tests/local-ai.test.js`, `backend/tests/prediction-accuracy.test.js`, `Frontend/ai-brain.js`.
+
+Implemented: analysts submit correct/wrong/partial/false-positive verdicts with optional notes capped at 300 characters; one row per user per analysis is enforced by a unique key. Correct/(correct+wrong) accuracy is withheld until 30 meaningful votes. Viewer GET access is retained while feedback writes require analyst/admin. AI Brain includes the verdict form and thresholded accuracy display.
+
+Checks: focused feedback tests pass; full backend suite 58/58; syntax checks pass; disabled-AI smoke returned health/login 200 and AI route 404; all 21 legacy live-table counts match baseline and users=3.
+
+Commit/tag: pending Step 6.1 close-out.
+
+### Steps 6.2-8
+
+Status: Not started. Implement one scoped sub-step at a time; update this log after each verified commit/tag.

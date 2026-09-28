@@ -5,6 +5,7 @@ const { PRIORS } = require('./predictor');
 const WINDOW_MS = { '15m': 15 * 60_000, '1h': 60 * 60_000, '24h': 24 * 60 * 60_000, '7d': 7 * 24 * 60 * 60_000 };
 const IP_TRANSITION_CAP = 5;
 const LEARNED_WEIGHT_MAX = 0.7;
+const FEEDBACK_VERDICTS = new Set(['correct', 'wrong', 'partial', 'false_positive']);
 
 function dbAll(db, sql, params = []) {
   return new Promise((resolve, reject) => db.all(sql, params, (error, rows) => error ? reject(error) : resolve(rows || [])));
@@ -55,6 +56,46 @@ async function initializeAccuracyTables(db) {
     updated_at TEXT NOT NULL,
     PRIMARY KEY(signature, next_action, ip)
   )`);
+  await dbRun(db, `CREATE TABLE IF NOT EXISTS ai_analysis_feedback (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    analysis_id INTEGER NOT NULL,
+    username TEXT NOT NULL,
+    verdict TEXT NOT NULL CHECK(verdict IN ('correct', 'wrong', 'partial', 'false_positive')),
+    note TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    UNIQUE(analysis_id, username)
+  )`);
+}
+
+async function recordAnalystFeedback(db, { analysisId, username, verdict, note = '', createdAt = new Date().toISOString() }) {
+  if (!Number.isInteger(analysisId) || analysisId < 1) throw new Error('A valid analysis ID is required');
+  if (!FEEDBACK_VERDICTS.has(verdict)) throw new Error('Unsupported feedback verdict');
+  if (typeof note !== 'string' || note.length > 300) throw new Error('Feedback note must be 300 characters or fewer');
+  await dbRun(db, `INSERT INTO ai_analysis_feedback (analysis_id, username, verdict, note, created_at)
+    VALUES (?, ?, ?, ?, ?)`, [analysisId, username, verdict, note.trim(), createdAt]);
+  return readFeedbackMetrics(db);
+}
+
+async function readFeedbackMetrics(db) {
+  await initializeAccuracyTables(db);
+  const rows = await dbAll(db, 'SELECT verdict, COUNT(*) AS count FROM ai_analysis_feedback GROUP BY verdict');
+  const counts = Object.fromEntries(rows.map(row => [row.verdict, Number(row.count)]));
+  const correct = counts.correct || 0;
+  const wrong = counts.wrong || 0;
+  const meaningful = correct + wrong;
+  const available = meaningful >= 30;
+  return {
+    meaningful_feedback: meaningful,
+    status: available ? 'available' : 'not_enough_data',
+    message: available ? null : 'Not enough data yet',
+    accuracy: available ? correct / meaningful : null,
+    counts: {
+      correct,
+      wrong,
+      partial: counts.partial || 0,
+      false_positive: counts.false_positive || 0,
+    },
+  };
 }
 
 function predictionHorizon(predictions = []) {
@@ -241,12 +282,15 @@ async function readPredictionMetrics(db) {
 module.exports = {
   IP_TRANSITION_CAP,
   LEARNED_WEIGHT_MAX,
+  FEEDBACK_VERDICTS,
   WINDOW_MS,
   applyLearnedWeights,
   calibratePrediction,
   evaluatePendingPredictions,
   initializeAccuracyTables,
   predictionHorizon,
+  readFeedbackMetrics,
   readPredictionMetrics,
+  recordAnalystFeedback,
   recordPrediction,
 };

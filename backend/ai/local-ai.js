@@ -12,8 +12,11 @@ const {
   applyLearnedWeights,
   calibratePrediction,
   evaluatePendingPredictions,
+  FEEDBACK_VERDICTS,
   initializeAccuracyTables,
+  readFeedbackMetrics,
   readPredictionMetrics,
+  recordAnalystFeedback,
   recordPrediction,
 } = require('./accuracy');
 const {
@@ -148,6 +151,10 @@ function createLocalAi({ db, config, requireAdmin, requireAnalyst, writeAuditLog
       if (error) return reject(error);
       resolve({ lastID: this.lastID, changes: this.changes });
     }));
+  }
+
+  function dbGet(sql, params = []) {
+    return new Promise((resolve, reject) => db.get(sql, params, (error, row) => error ? reject(error) : resolve(row || null)));
   }
 
   async function readSettings() {
@@ -402,15 +409,46 @@ function createLocalAi({ db, config, requireAdmin, requireAnalyst, writeAuditLog
     }
   });
 
-  router.get('/prediction-metrics', requireAnalyst, async (req, res) => {
+  router.get('/prediction-metrics', async (req, res) => {
     try {
       res.set('Cache-Control', 'no-store');
       const settings = await readSettings();
       const evaluated = await evaluatePendingPredictions(db, { learningEnabled: settings.ai_learning === 'true' });
-      res.json({ metrics: await readPredictionMetrics(db), evaluated });
+      res.json({ metrics: await readPredictionMetrics(db), feedback: await readFeedbackMetrics(db), evaluated });
     } catch (error) {
       console.warn('[Local AI] prediction metrics read failed:', error.message);
       res.status(503).json({ error: 'Prediction metrics are temporarily unavailable' });
+    }
+  });
+
+  router.post('/feedback/:analysisId', requireAnalyst, async (req, res) => {
+    const analysisId = Number(req.params.analysisId);
+    const { verdict, note = '' } = req.body || {};
+    if (!Number.isInteger(analysisId) || analysisId < 1) return res.status(400).json({ error: 'A valid analysis ID is required' });
+    if (!FEEDBACK_VERDICTS.has(verdict)) return res.status(400).json({ error: 'Unsupported feedback verdict' });
+    if (typeof note !== 'string' || note.length > 300) return res.status(400).json({ error: 'Feedback note must be 300 characters or fewer' });
+
+    try {
+      const analysis = await dbGet('SELECT id FROM ai_analyses WHERE id = ?', [analysisId]);
+      if (!analysis) return res.status(404).json({ error: 'AI analysis not found' });
+      const metrics = await recordAnalystFeedback(db, {
+        analysisId,
+        username: req.user?.username || 'analyst',
+        verdict,
+        note,
+      });
+      await writeAuditLog({
+        actor: req.user?.username || 'analyst',
+        actorIp: req.ip || 'unknown',
+        action: 'AI_ANALYSIS_FEEDBACK',
+        entity: String(analysisId),
+        details: { verdict },
+      });
+      res.status(201).json({ success: true, feedback: metrics });
+    } catch (error) {
+      if (error.code === 'SQLITE_CONSTRAINT') return res.status(409).json({ error: 'Feedback already submitted for this analysis by this user' });
+      console.warn('[Local AI] analyst feedback save failed:', error.message);
+      res.status(503).json({ error: 'Analyst feedback could not be saved' });
     }
   });
 

@@ -343,6 +343,53 @@
     }
     appendTextElement(container, 'p', 'aib-result-meta', `Engine: ${result.engine || analysis.engine || 'local-ai'} (${result.method || 'rules+stats+llm'}) · LLM: ${result.llm_used === false ? `not used - ${fallbackReason || 'unknown'}` : 'used'} · ${result.latency_ms ?? '--'} ms · ${result.prompt_version || 'attacker-v4'}`);
     appendTextElement(container, 'p', 'aib-disclaimer', 'Predictions are probabilistic estimates. Accuracy is measured on this SOC\'s own history and shown only after enough data. Analyst review required.');
+    if (result.analysis_id && ['admin', 'analyst'].includes(document.getElementById('hUserRole')?.textContent.trim().toLowerCase())) {
+      const feedbackForm = document.createElement('form');
+      feedbackForm.className = 'aib-feedback-form';
+      appendTextElement(feedbackForm, 'h3', '', 'Analyst feedback');
+      const verdictLabel = appendTextElement(feedbackForm, 'label', '', 'Verdict');
+      const verdict = document.createElement('select');
+      verdict.required = true;
+      verdict.name = 'verdict';
+      [['correct', 'Correct'], ['wrong', 'Wrong'], ['partial', 'Partial'], ['false_positive', 'False positive']].forEach(([value, label]) => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = label;
+        verdict.appendChild(option);
+      });
+      verdictLabel.appendChild(verdict);
+      const noteLabel = appendTextElement(feedbackForm, 'label', '', 'Note (optional, 300 characters max)');
+      const note = document.createElement('textarea');
+      note.name = 'note';
+      note.maxLength = 300;
+      note.rows = 2;
+      noteLabel.appendChild(note);
+      const submit = document.createElement('button');
+      submit.type = 'submit';
+      submit.className = 'aib-button aib-secondary';
+      submit.textContent = 'Submit feedback';
+      feedbackForm.appendChild(submit);
+      const feedbackStatus = appendTextElement(feedbackForm, 'p', 'aib-result-meta', '');
+      feedbackForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        submit.disabled = true;
+        try {
+          const response = await request(`/ai/feedback/${encodeURIComponent(result.analysis_id)}`, {
+            method: 'POST',
+            body: JSON.stringify({ verdict: verdict.value, note: note.value }),
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(payload.error || 'Feedback could not be saved.');
+          feedbackStatus.textContent = 'Feedback recorded.';
+          feedbackForm.querySelectorAll('select, textarea, button').forEach(control => { control.disabled = true; });
+          await loadPredictionMetrics();
+        } catch (error) {
+          feedbackStatus.textContent = error.message || 'Feedback could not be saved.';
+          submit.disabled = false;
+        }
+      });
+      container.appendChild(feedbackForm);
+    }
     loadHistory();
     loadPredictionMetrics();
   }
@@ -408,6 +455,10 @@
         appendTextElement(metricsList, 'li', '', `Baselines: repeat-last ${Math.round(metrics.baseline_repeat_last * 100)}% · most-common ${Math.round(metrics.baseline_most_common * 100)}%`);
         appendTextElement(metricsList, 'li', '', `Brier score ${metrics.brier_score.toFixed(3)} · calibration gap ${Math.round(metrics.calibration_gap * 100)}%`);
       }
+      const feedback = payload.feedback || {};
+      appendTextElement(metricsList, 'li', '', feedback.meaningful_feedback >= 30
+        ? `Analyst feedback accuracy ${Math.round(feedback.accuracy * 100)}% · ${feedback.meaningful_feedback} correct/wrong votes`
+        : 'Analyst feedback accuracy: Not enough data yet');
     } catch (error) {
       metricsStatus.textContent = error.message || 'Prediction metrics unavailable.';
       metricsList.replaceChildren();

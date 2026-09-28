@@ -270,15 +270,36 @@ test('enabled Local AI queues attacker analysis through the local model and stor
     const metricsPayload = await metricsResponse.json();
     assert.equal(metricsPayload.metrics.status, 'not_enough_data');
     assert.equal(metricsPayload.metrics.n, 0);
+    assert.equal(metricsPayload.feedback.message, 'Not enough data yet');
+    const feedbackUrl = `${apiUrl}/feedback/${job.result.analysis_id}`;
+    const oversizedFeedback = await fetch(feedbackUrl, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ verdict: 'correct', note: 'x'.repeat(301) }),
+    });
+    assert.equal(oversizedFeedback.status, 400);
+    const feedbackResponse = await fetch(feedbackUrl, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ verdict: 'correct', note: 'Evidence matched.' }),
+    });
+    assert.equal(feedbackResponse.status, 201);
+    assert.equal((await feedbackResponse.json()).feedback.meaningful_feedback, 1);
+    assert.equal((await fetch(feedbackUrl, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ verdict: 'wrong' }),
+    })).status, 409);
     apiRole = 'viewer';
-    assert.equal((await fetch(`${apiUrl}/prediction-metrics`)).status, 403);
+    assert.equal((await fetch(`${apiUrl}/prediction-metrics`)).status, 200);
+    assert.equal((await fetch(`${apiUrl}/feedback/${reanalysis.result.analysis_id}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ verdict: 'partial' }),
+    })).status, 403);
     apiRole = 'admin';
     const predictorTables = await new Promise((resolve, reject) => db.all(
-      "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('ai_ip_timeline', 'ai_attacker_profiles', 'ai_playbook_priors', 'ai_mitre_map', 'ai_predictions', 'ai_prediction_outcomes', 'ai_calibration', 'ai_transition_stats') ORDER BY name",
+      "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('ai_ip_timeline', 'ai_attacker_profiles', 'ai_playbook_priors', 'ai_mitre_map', 'ai_predictions', 'ai_prediction_outcomes', 'ai_calibration', 'ai_transition_stats', 'ai_analysis_feedback') ORDER BY name",
       [],
       (error, rows) => error ? reject(error) : resolve(rows.map(row => row.name))
     ));
-    assert.deepEqual(predictorTables, ['ai_attacker_profiles', 'ai_calibration', 'ai_ip_timeline', 'ai_mitre_map', 'ai_playbook_priors', 'ai_prediction_outcomes', 'ai_predictions', 'ai_transition_stats']);
+    assert.deepEqual(predictorTables, ['ai_analysis_feedback', 'ai_attacker_profiles', 'ai_calibration', 'ai_ip_timeline', 'ai_mitre_map', 'ai_playbook_priors', 'ai_prediction_outcomes', 'ai_predictions', 'ai_transition_stats']);
     const predictionCount = await new Promise((resolve, reject) => db.get('SELECT COUNT(*) AS total FROM ai_predictions', [], (error, row) => error ? reject(error) : resolve(row.total)));
     assert.equal(predictionCount, 2);
     const timelineCount = await new Promise((resolve, reject) => db.get('SELECT COUNT(*) AS total FROM ai_ip_timeline WHERE ip = ?', ['203.0.113.7'], (error, row) => error ? reject(error) : resolve(row.total)));
