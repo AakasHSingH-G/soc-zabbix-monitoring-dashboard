@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>/index.html</loc></url>
+  <url><loc>/product.html?id=1</loc></url>
+  <url><loc>/payment.html</loc></url>
+  <url><loc>/admin-login.html</loc></url>
+  <url><loc>/admin/</loc></url>
+  <url><loc>/dashboard.html</loc></url>
+  <url><loc>/dashboard-users.html</loc></url>
+  <url><loc>/dashboard-orders.html</loc></url>
+  <url><loc>/dashboard-invoices.html</loc></url>
+  <url><loc>/dashboard-employees.html</loc></url>
+  <url><loc>/dashboard-vendors.html</loc></url>
+  <url><loc>/dashboard-tickets.html</loc></url>
+  <url><loc>/dashboard-settings.html</loc></url>
+  <url><loc>/api/products.json</loc></url>
+  <url><loc>/api/users.json</loc></url>
+  <url><loc>/api/orders.json</loc></url>
+  <url><loc>/api/employees.json</loc></url>
+  <url><loc>/api/invoices.json</loc></url>
+  <url><loc>/api/vendors.json</loc></url>
+  <url><loc>/api/tickets.json</loc></url>
+</urlset>

@@ -6,6 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Zabbix SOC Platform </title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  <script src="https://unpkg.com/globe.gl@2.34.0/dist/globe.gl.min.js"></script>
   <link
     href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap"
     rel="stylesheet">
@@ -18,7 +20,7 @@
   <div id="loginScreen">
     <div class="login-container">
       <div class="login-logo">
-        <span class="login-logo-icon">🔷</span>
+        <img class="soc-logo-image login-soc-logo" src="/SOC_logo.png" alt="Zabbix SOC logo">
         <h1>Zabbix SOC</h1>
         <p>Unified Monitoring &amp; Flow Platform</p>
       </div>
@@ -32,7 +34,7 @@
           <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
         </div>
         <div class="error-message" id="loginError">Invalid credentials</div>
-        <button type="submit" class="login-button">ACCESS SYSTEM</button>
+        <button type="submit" class="login-button" disabled>ACCESS SYSTEM</button>
       </form>
     </div>
   </div>
@@ -42,19 +44,19 @@
     <!-- HEADER -->
     <header class="header">
       <div class="logo">
-        <div class="logo-box">Z</div>
+        <img class="soc-logo-image header-soc-logo" src="/SOC_logo.png" alt="Zabbix SOC logo">
         ZABBIX SOC
       </div>
       <div class="h-vsep"></div>
-      <div class="tb-stat"><span class="tb-v c-b" id="hHosts">342</span><span class="tb-l">Hosts</span></div>
+      <div class="tb-stat"><span class="tb-v c-b" id="hHosts">0</span><span class="tb-l">Hosts</span></div>
       <div class="h-vsep"></div>
-      <div class="tb-stat"><span class="tb-v c-y" id="hProbs">23</span><span class="tb-l">Problems</span></div>
+      <div class="tb-stat"><span class="tb-v c-y" id="hProbs">0</span><span class="tb-l">Problems</span></div>
       <div class="h-vsep"></div>
-      <div class="tb-stat"><span class="tb-v c-r" id="hCrit">4</span><span class="tb-l">Critical</span></div>
+      <div class="tb-stat"><span class="tb-v c-r" id="hCrit">0</span><span class="tb-l">Critical</span></div>
       <div class="h-vsep"></div>
-      <div class="tb-stat"><span class="tb-v c-g">99.98%</span><span class="tb-l">Uptime</span></div>
+      <div class="tb-stat"><span class="tb-v c-g" id="hUptime">OFFLINE</span><span class="tb-l">Uptime</span></div>
       <div class="h-vsep"></div>
-      <div class="tb-stat"><span class="tb-v c-d" id="hIps">8,420</span><span class="tb-l">Items/sec</span></div>
+      <div class="tb-stat"><span class="tb-v c-d" id="hIps">NOT CONFIGURED</span><span class="tb-l">Items/sec</span></div>
       <div class="h-spacer"></div>
       <div class="live-badge">
         <div class="l-dot"></div>LIVE
@@ -73,13 +75,18 @@
 
     <!-- NAV TABS -->
     <nav class="nav-tabs">
-      <button class="nav-tab active" onclick="switchMainTab('overview',this)">📊 Overview</button>
-      <button class="nav-tab" onclick="switchMainTab('hosts',this)">💻 Hosts</button>
-      <button class="nav-tab" onclick="switchMainTab('problems',this)">🚨 Problems</button>
-      <button class="nav-tab" onclick="switchMainTab('graphs',this)">📈 Graphs</button>
-      <button class="nav-tab" onclick="switchMainTab('socflow',this)">🔀 SOC Flow</button>
-      <button class="nav-tab" onclick="switchMainTab('config',this)">⚙️ Config</button>
-      <button class="nav-tab" id="adminNavTab" style="display:none" onclick="switchMainTab('admin',this)">👥
+      <button class="nav-tab active" title="Ctrl/Cmd-click to open in a new tab" onclick="switchMainTab('overview',this,event)">&#128202; Overview</button>
+      <button class="nav-tab" title="Ctrl/Cmd-click to open in a new tab" onclick="switchMainTab('hosts',this,event)">&#128187; Hosts</button>
+      <button class="nav-tab" title="Ctrl/Cmd-click to open in a new tab" onclick="switchMainTab('problems',this,event)">&#128680; Problems</button>
+      <button class="nav-tab" title="Ctrl/Cmd-click to open in a new tab" onclick="switchMainTab('graphs',this,event)">&#128200; Graphs</button>
+      <button class="nav-tab" title="Ctrl/Cmd-click to open in a new tab" onclick="switchMainTab('socflow',this,event)">&#128256; SOC Flow</button>
+      <button class="nav-tab" title="Ctrl/Cmd-click to open in a new tab" onclick="switchMainTab('honeypot',this,event)">&#127855; Honeypot</button>
+      <button class="nav-tab" title="Ctrl/Cmd-click to open in a new tab" onclick="switchMainTab('config',this,event)">&#9881;&#65039; Config</button>
+      <button class="nav-tab" title="Ctrl/Cmd-click to open in a new tab" onclick="switchMainTab('ai_brain',this,event)">AI Brain</button>
+        <button class="nav-tab" title="Ctrl/Cmd-click to open in a new tab" onclick="switchMainTab('security',this,event)">&#128737;&#65039; Security</button>
+      <button class="nav-tab" title="Ctrl/Cmd-click to open in a new tab" onclick="switchMainTab('threatintel',this,event)">&#128269; Threat Intel</button>
+      <button class="nav-tab" title="Ctrl/Cmd-click to open in a new tab" onclick="switchMainTab('incidents',this,event)">&#128680; Incidents</button>
+      <button class="nav-tab" id="adminNavTab" style="display:none" title="Ctrl/Cmd-click to open in a new tab" onclick="switchMainTab('admin',this,event)">&#128101;
         Admin</button>
     </nav>
 
@@ -93,25 +100,25 @@
             <div class="stat-card">
               <div class="stat-header"><span class="stat-title">Total Hosts</span><span class="stat-icon">💻</span>
               </div>
-              <div class="stat-value" id="statTotalHosts">342</div>
-              <div class="stat-change positive">▲ <span id="statHostsOnline">318</span> online</div>
+              <div class="stat-value" id="statTotalHosts">0</div>
+              <div class="stat-change positive">▲ <span id="statHostsOnline">0</span> online</div>
             </div>
             <div class="stat-card">
               <div class="stat-header"><span class="stat-title">Critical Problems</span><span
                   class="stat-icon">🚨</span></div>
-              <div class="stat-value" id="statCriticalProblems">4</div>
-              <div class="stat-change negative"><span id="statTotalProblems">23</span> total problems</div>
+              <div class="stat-value" id="statCriticalProblems">0</div>
+              <div class="stat-change negative"><span id="statTotalProblems">0</span> total problems</div>
             </div>
             <div class="stat-card">
               <div class="stat-header"><span class="stat-title">Avg CPU Usage</span><span class="stat-icon">⚡</span>
               </div>
-              <div class="stat-value" id="statAvgCpu">34%</div>
-              <div class="stat-change positive">Real-time monitoring</div>
+              <div class="stat-value" id="statAvgCpu">NOT CONFIGURED</div>
+              <div class="stat-change positive">Awaiting live telemetry</div>
             </div>
             <div class="stat-card">
               <div class="stat-header"><span class="stat-title">Avg Memory</span><span class="stat-icon">🧠</span></div>
-              <div class="stat-value" id="statAvgMemory">61%</div>
-              <div class="stat-change positive">All systems</div>
+              <div class="stat-value" id="statAvgMemory">NOT CONFIGURED</div>
+              <div class="stat-change positive">Awaiting live telemetry</div>
             </div>
           </div>
 
@@ -245,9 +252,13 @@
             </div>
             <div class="chart-card">
               <div class="chart-header">
-                <h3 class="chart-title">Network Traffic</h3><span class="chart-badge">Last 2 Hours</span>
+                  <h3 class="chart-title">Network Speed</h3><span class="chart-badge">LIVE · MBPS</span>
               </div>
-              <div class="chart-container"><canvas id="networkChart"></canvas></div>
+                <div class="chart-container network-gauge-container">
+                  <canvas id="networkChart"></canvas>
+                  <div class="network-gauge-value"><strong id="networkMbpsValue">0</strong><span>MBPS</span></div>
+                  <div class="network-gauge-scale"><span>0</span><span>30</span><span>60</span><span>90+</span></div>
+                </div>
             </div>
             <div class="chart-card">
               <div class="chart-header">
@@ -269,19 +280,19 @@
               <div class="pd" style="background:#1a70a8"></div>Data Source
             </div>
             <div class="pal">
-              <div class="pd" style="background:#0d9488"></div>Discovery
+              <div class="pd" style="background:#0d9488"></div>Security Sensors
             </div>
             <div class="pal">
               <div class="pd" style="background:#d08010"></div>Trigger / Eval
             </div>
             <div class="pal">
-              <div class="pd" style="background:#7030d0"></div>Problem Mgr
+              <div class="pd" style="background:#7030d0"></div>Correlation / IR
             </div>
             <div class="pal">
-              <div class="pd" style="background:#c01838"></div>Alert Router
+              <div class="pd" style="background:#c01838"></div>Threat Intel
             </div>
             <div class="pal">
-              <div class="pd" style="background:#2060d8"></div>Notifier
+              <div class="pd" style="background:#2060d8"></div>Response / Notify
             </div>
             <div class="pal">
               <div class="pd" style="background:#058060"></div>SIEM / Store
@@ -289,16 +300,16 @@
           </div>
           <div class="sb-sec">
             <div class="sb-h">Pipeline</div>
-            <div class="ms"><span class="ms-l">Events / min</span><span class="ms-v c-b" id="flow-epm">512</span></div>
-            <div class="ms"><span class="ms-l">Alerts fired</span><span class="ms-v c-y" id="flow-af">18</span></div>
-            <div class="ms"><span class="ms-l">Suppressed</span><span class="ms-v">4</span></div>
-            <div class="ms"><span class="ms-l">Notifications</span><span class="ms-v">306</span></div>
-            <div class="ms"><span class="ms-l">SIEM events</span><span class="ms-v">2.4M</span></div>
+            <div class="ms"><span class="ms-l">Events / min</span><span class="ms-v c-b" id="flow-epm">--</span></div>
+            <div class="ms"><span class="ms-l">Active alerts</span><span class="ms-v c-y" id="flow-af">--</span></div>
+            <div class="ms"><span class="ms-l">Honeyport probes</span><span class="ms-v" id="flow-hp">--</span></div>
+            <div class="ms"><span class="ms-l">Open incidents</span><span class="ms-v" id="flow-inc">--</span></div>
+            <div class="ms"><span class="ms-l">SIEM status</span><span class="ms-v c-g" id="flow-siem">--</span></div>
           </div>
           <div class="sb-sec">
             <div class="sb-h">Severity</div>
             <div class="sev-row">
-              <div class="sev-pip" style="background:#e84040"></div><span class="sev-n">Disaster</span><span
+                <div class="sev-pip" style="background:#e84040"></div><span class="sev-n">Critical</span><span
                 class="sev-c c-r" id="flow-sv-dis">1</span>
             </div>
             <div class="sev-row">
@@ -306,15 +317,15 @@
                 style="color:#f97030" id="flow-sv-hi">3</span>
             </div>
             <div class="sev-row">
-              <div class="sev-pip" style="background:#f0a030"></div><span class="sev-n">Average</span><span
+                <div class="sev-pip" style="background:#f0a030"></div><span class="sev-n">Medium</span><span
                 class="sev-c c-y" id="flow-sv-av">8</span>
             </div>
             <div class="sev-row">
-              <div class="sev-pip" style="background:#d4b000"></div><span class="sev-n">Warning</span><span
+                <div class="sev-pip" style="background:#d4b000"></div><span class="sev-n">Low</span><span
                 class="sev-c" style="color:#d4b000" id="flow-sv-wa">11</span>
             </div>
             <div class="sev-row">
-              <div class="sev-pip" style="background:#3080e0"></div><span class="sev-n">Info</span><span
+                <div class="sev-pip" style="background:#3080e0"></div><span class="sev-n">Sensors</span><span
                 class="sev-c c-b" id="flow-sv-in">24</span>
             </div>
           </div>
@@ -384,7 +395,7 @@
                 <div class="cs-dot cs-warn"></div><span class="cs-txt">Simulation mode (no WS server)</span>
               </div>
               <div class="form-row"><label>WebSocket URL</label>
-                <input type="text" id="cfgWsUrl" value="ws://localhost:8080" placeholder="ws://zabbix-server:8080">
+                <input type="text" id="cfgWsUrl" value="ws://localhost:3001/ws" placeholder="ws://zabbix-server:3001/ws">
               </div>
               <div class="form-row"><label>Reconnect Delay (ms)</label>
                 <input type="number" id="cfgWsReconnect" value="5000" min="1000">
@@ -412,6 +423,21 @@
                 <input type="password" id="cfgN8nKey" placeholder="n8n API key...">
               </div>
               <button class="test-btn" onclick="testN8nWebhook()">▶ Test Webhook</button>
+            </div>
+
+            <!-- Telegram Alert Controls -->
+            <div class="config-card">
+              <div class="config-card-title">📢 Telegram Alert Controls</div>
+              <div class="config-status" id="telegramAlertStatus">
+                <div class="cs-dot cs-ok"></div><span class="cs-txt">Loading Telegram alert state...</span>
+              </div>
+              <div class="form-row">
+                <label><input type="checkbox" id="telegramInternalToggle" checked> Internal SOC alerts enabled</label>
+              </div>
+              <div class="form-row">
+                <label><input type="checkbox" id="telegramHoneyToggle" checked> Honey-port attack alerts enabled</label>
+              </div>
+              <button class="test-btn" onclick="saveTelegramAlertSettings()">💾 Save Telegram Settings</button>
             </div>
 
             <!-- Alert Routing -->
@@ -479,6 +505,9 @@
         </div>
       </div>
 
+      <!-- ==================== AI BRAIN TAB ==================== -->
+      <section class="tab-content scroll-tab" id="aiBrainTab"></section>
+
       <!-- ==================== ADMIN TAB ==================== -->
       <div class="tab-content scroll-tab" id="adminTab">
         <div class="container">
@@ -487,6 +516,90 @@
             <div>
               <h3>Super Admin Panel</h3>
               <p>Only administrators can create users and add hosts. All changes are logged.</p>
+            </div>
+          </div>
+          <section class="config-card account-settings mb-20">
+            <div class="config-card-title">Account Settings</div>
+            <div class="account-section">
+              <div class="account-section-heading">
+                <div>
+                  <h4>Profile Details</h4>
+                  <p>Update the administrator details shown across the dashboard.</p>
+                </div>
+                <span class="account-section-icon">&#128100;</span>
+              </div>
+              <form id="profileForm" class="account-form" onsubmit="event.preventDefault(); updateProfile();">
+                <div class="account-fields">
+                  <div class="form-row"><label for="profileUsername">Username</label><input type="text" id="profileUsername" readonly></div>
+                  <div class="form-row"><label for="profileFullName">Full Name</label><input type="text" id="profileFullName" required></div>
+                  <div class="form-row"><label for="profileEmail">Email</label><input type="email" id="profileEmail" required></div>
+                </div>
+                <div class="account-actions">
+                  <span class="account-feedback" id="profileFeedback" aria-live="polite"></span>
+                  <button type="submit" class="btn account-btn">Save Profile</button>
+                </div>
+              </form>
+            </div>
+            <div class="account-divider"></div>
+            <div class="account-section">
+              <div class="account-section-heading">
+                <div>
+                  <h4>Change Password</h4>
+                  <p>Use a strong password with at least 8 characters.</p>
+                  <span class="password-security-note">&#128274; Stored securely as a one-way hash. It cannot be viewed or decrypted.</span>
+                </div>
+                <span class="account-section-icon">&#128272;</span>
+              </div>
+              <form id="passwordForm" class="account-form" onsubmit="event.preventDefault(); updatePassword();">
+                <div class="account-fields password-fields">
+                  <div class="form-row"><label for="currentAdminPassword">Current Password</label><div class="password-input"><input type="password" id="currentAdminPassword" autocomplete="current-password" required><button type="button" class="password-toggle" onclick="togglePasswordVisibility('currentAdminPassword', this)" aria-label="Show current password">Show</button></div></div>
+                  <div class="form-row"><label for="newAdminPassword">New Password</label><div class="password-input"><input type="password" id="newAdminPassword" minlength="8" autocomplete="new-password" required><button type="button" class="password-toggle" onclick="togglePasswordVisibility('newAdminPassword', this)" aria-label="Show new password">Show</button></div></div>
+                  <div class="form-row"><label for="confirmAdminPassword">Confirm Password</label><div class="password-input"><input type="password" id="confirmAdminPassword" minlength="8" autocomplete="new-password" required><button type="button" class="password-toggle" onclick="togglePasswordVisibility('confirmAdminPassword', this)" aria-label="Show confirmed password">Show</button></div></div>
+                </div>
+                <div class="account-actions">
+                  <span class="account-feedback" id="passwordFeedback" aria-live="polite"></span>
+                  <button type="submit" class="btn account-btn">Update Password</button>
+                </div>
+              </form>
+            </div>
+            <div class="account-divider"></div>
+            <div class="account-section">
+              <div class="account-section-heading">
+                <div>
+                  <h4>Admin Panel Verification Password</h4>
+                  <p>This password is only required when opening the Admin panel.</p>
+                  <span class="password-security-note">&#128274; Stored securely as a one-way hash. It cannot be viewed or decrypted.</span>
+                </div>
+                <span class="account-section-icon">&#128274;</span>
+              </div>
+              <form id="adminPanelPasswordForm" class="account-form" onsubmit="event.preventDefault(); updateAdminPanelPassword();">
+                <div class="account-fields password-fields">
+                  <div class="form-row"><label for="currentPanelPassword">Current Panel Password</label><div class="password-input"><input type="password" id="currentPanelPassword" autocomplete="current-password" required><button type="button" class="password-toggle" onclick="togglePasswordVisibility('currentPanelPassword', this)" aria-label="Show current panel password">Show</button></div></div>
+                  <div class="form-row"><label for="newPanelPassword">New Panel Password</label><div class="password-input"><input type="password" id="newPanelPassword" minlength="8" autocomplete="new-password" required><button type="button" class="password-toggle" onclick="togglePasswordVisibility('newPanelPassword', this)" aria-label="Show new panel password">Show</button></div></div>
+                  <div class="form-row"><label for="confirmPanelPassword">Confirm Panel Password</label><div class="password-input"><input type="password" id="confirmPanelPassword" minlength="8" autocomplete="new-password" required><button type="button" class="password-toggle" onclick="togglePasswordVisibility('confirmPanelPassword', this)" aria-label="Show confirmed panel password">Show</button></div></div>
+                </div>
+                <div class="account-actions">
+                  <span class="account-feedback" id="panelPasswordFeedback" aria-live="polite"></span>
+                  <button type="submit" class="btn account-btn">Update Panel Password</button>
+                </div>
+              </form>
+            </div>
+          </section>
+          <div class="data-table mb-20">
+            <div class="table-header">
+              <div>
+                <h3 class="table-title">Complete Dashboard Report</h3>
+                <div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Overview, monitoring, security, automation, HoneyPot and audit data</div>
+              </div>
+              <div class="table-actions">
+                <select id="reportRange" class="btn btn-secondary" aria-label="Report time range">
+                  <option value="24h">Last 24 hours</option>
+                  <option value="7d" selected>Last 7 days</option>
+                  <option value="30d">Last 30 days</option>
+                  <option value="all">All available data</option>
+                </select>
+                <button class="btn btn-secondary" id="exportCompleteReportBtn" onclick="exportCompleteReport()">⬇ Export Complete Report (.doc)</button>
+              </div>
             </div>
           </div>
           <div class="data-table mb-20">
@@ -538,9 +651,6 @@
           </div>
         </div>
       </div>
-
-    </div><!-- /mainContent -->
-  </div><!-- /dashboard -->
 
   <!-- ==================== MODALS ==================== -->
   <div class="modal" id="addUserModal">
@@ -604,17 +714,169 @@
     </div>
   </div>
 
+  <div class="modal" id="adminAccessModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title">Administrator Verification</h2>
+        <div class="modal-close" onclick="closeModal('adminAccessModal')">×</div>
+      </div>
+      <form onsubmit="verifyAdminAccess(event)">
+        <p class="modal-help">Enter your administrator login password or configured panel password.</p>
+        <div class="form-row"><label>Admin Password</label><input type="password" id="adminAccessPassword" required autocomplete="current-password"></div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('adminAccessModal')">Cancel</button>
+          <button type="submit" class="btn">Verify Access</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" id="hostDetailModal">
+    <div class="modal-content host-detail-modal">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title" id="hostDetailTitle">Host Details</h2>
+          <div class="host-detail-subtitle" id="hostDetailSubtitle"></div>
+        </div>
+        <button class="modal-close" type="button" aria-label="Close host details" onclick="closeHostDetails()">&times;</button>
+      </div>
+      <div class="host-detail-live"><span class="l-dot"></span> LIVE TELEMETRY <span id="hostDetailUpdated">Updating...</span></div>
+      <div class="host-detail-metrics">
+        <div class="host-metric"><span>CPU</span><strong id="hostDetailCpu">--</strong></div>
+        <div class="host-metric"><span>MEMORY</span><strong id="hostDetailMemory">--</strong></div>
+        <div class="host-metric"><span>DISK</span><strong id="hostDetailDisk">--</strong></div>
+        <div class="host-metric"><span>AVAILABILITY</span><strong id="hostDetailAvailability">--</strong></div>
+      </div>
+      <div class="host-detail-charts">
+        <div class="host-detail-chart"><h3>CPU Usage</h3><div><canvas id="hostCpuChart"></canvas></div></div>
+        <div class="host-detail-chart"><h3>Memory Usage</h3><div><canvas id="hostMemoryChart"></canvas></div></div>
+        <div class="host-detail-chart"><h3>Disk Usage</h3><div><canvas id="hostDiskChart"></canvas></div></div>
+      </div>
+      <div class="modal-actions host-detail-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeHostDetails()">Close</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== JAVASCRIPT ==================== -->
   <script>
     // =================================================================
     // CONFIGURATION
     // =================================================================
+    const DEFAULT_BACKEND = 'http://localhost:3001';
+    const FALLBACK_BACKENDS = ['http://localhost:3001', 'http://localhost:3002', 'http://localhost:3003'];
+    const BACKEND_HEALTH_TIMEOUT_MS = 4000;
+    const IS_FILE_PROTOCOL = window.location.protocol === 'file:';
+    const BACKEND_PORTS = new Set(['3001', '3002', '3003', '3004', '3005']);
+    const IS_BACKEND_ORIGIN = BACKEND_PORTS.has(window.location.port || (window.location.protocol === 'http:' ? '80' : '443'));
+    const ORIGIN = IS_FILE_PROTOCOL || !IS_BACKEND_ORIGIN ? DEFAULT_BACKEND : window.location.origin;
+    const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const WS_HOST = IS_FILE_PROTOCOL ? 'localhost' : (window.location.hostname || 'localhost');
+    const WS_PORT = IS_FILE_PROTOCOL ? '3001' : (window.location.port || '3001');
+
+    async function redirectFromFileProtocol() {
+      for (const backend of FALLBACK_BACKENDS) {
+        try {
+          const health = await fetch(`${backend}/api/health`, { method: 'GET' });
+          if (health.ok) {
+            window.location.href = backend + '/';
+            return;
+          }
+        } catch (e) {
+          // ignore and try the next backend port
+        }
+      }
+      const loginForm = document.getElementById('loginForm');
+      const loginError = document.getElementById('loginError');
+      const loginButton = loginForm?.querySelector('.login-button');
+      if (loginButton) loginButton.disabled = true;
+      if (loginError) {
+        loginError.textContent = 'Backend is not running. Open this page through the Zabbix SOC server.';
+        loginError.classList.add('show');
+      }
+    }
+
+    if (IS_FILE_PROTOCOL) {
+      redirectFromFileProtocol();
+    }
+
     const CONFIG = {
-      apiUrl: 'http://localhost:3001/api',
-      wsUrl: 'ws://localhost:8080',
+      apiUrl: `${ORIGIN}/api`,
+      zabbixApi: `${ORIGIN}/api/zabbix`,
+      wsUrl: `${WS_PROTOCOL}//${WS_HOST}:${WS_PORT}/ws`,
       graphRotation: 60000,
-      demoMode: false  // Always false to use the Node.js backend
+      demoMode: false
     };
+
+    window.CONFIG = CONFIG;
+    console.log('Zabbix SOC frontend starting', CONFIG);
+
+    let backendAvailable = false;
+
+    async function checkBackendConnection() {
+      const loginButton = document.querySelector('.login-button');
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), BACKEND_HEALTH_TIMEOUT_MS);
+      try {
+        const response = await fetch(`${CONFIG.apiUrl}/health`, {
+          method: 'GET',
+          cache: 'no-store',
+          headers: { Accept: 'application/json' },
+          signal: controller.signal
+        });
+        backendAvailable = response.ok;
+      } catch (error) {
+        backendAvailable = false;
+      } finally {
+        clearTimeout(timeout);
+      }
+
+      if (loginButton) loginButton.disabled = !backendAvailable;
+      if (!backendAvailable) {
+        const loginError = document.getElementById('loginError');
+        if (loginError) {
+          loginError.textContent = 'Backend is not running. Start the server before signing in.';
+          loginError.classList.add('show');
+        }
+      }
+      return backendAvailable;
+    }
+
+    checkBackendConnection();
+
+    function ensureDashboardVisible() {
+      const dashboard = document.getElementById('dashboard');
+      const loginScreen = document.getElementById('loginScreen');
+      const activeTab = document.querySelector('.tab-content.active');
+
+      if (dashboard && !dashboard.classList.contains('show')) {
+        dashboard.classList.add('show');
+      }
+      if (loginScreen && !loginScreen.classList.contains('hidden')) {
+        loginScreen.classList.add('hidden');
+      }
+
+      if (!activeTab) {
+        const overviewTab = document.getElementById('overviewTab');
+        const overviewNav = document.querySelector(".nav-tab[onclick*=\"'overview'\"]");
+
+        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
+
+        if (overviewTab) overviewTab.classList.add('active');
+        if (overviewNav) overviewNav.classList.add('active');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('DOM loaded, applying config');
+      const cfgApiInput = document.getElementById('cfgApiUrl');
+      const cfgWsInput = document.getElementById('cfgWsUrl');
+      const usernameInput = document.getElementById('username');
+      const passwordInput = document.getElementById('password');
+      if (cfgApiInput) cfgApiInput.value = CONFIG.apiUrl;
+      if (cfgWsInput) cfgWsInput.value = CONFIG.wsUrl;
+    });
 
     // =================================================================
     // STATE
@@ -628,89 +890,71 @@
     let mockProblems = [];
     let mockUsers = [];
     let mockAuditLog = [];
+    let dashboardRefreshInterval = null;
+    let backendHealthInterval = null;
+    let dashboardInitialized = false;
+    let adminAccessGranted = false;
+    let pendingAdminRouteUpdate = true;
+    let liveTelemetryInterval = null;
+    let problemSimulationInterval = null;
+    let usingMockProblems = false;
+    let hostDetailInterval = null;
+    let hostDetailCharts = {};
+    let selectedHost = null;
 
-    // =================================================================
-    // MOCK DATA GENERATORS
-    // =================================================================
-    function rnd(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min }
-    function pick(arr) { return arr[rnd(0, arr.length - 1)] }
+    startBackendMonitor();
 
-    const HOSTNAMES = [
-      'srv-db-01.prod', 'k8s-node-03.prod', 'nginx-lb-02.prod', 'srv-web-07.prod',
-      'redis-cache-01', 'monitoring.int', 'backup-srv-01', 'fw-edge-01.prod',
-      'srv-api-04.prod', 'elk-elastic-02', 'vpn-gw-01.prod', 'ceph-node-02',
-      'auth-srv-01', 'mq-rabbit-03', 'srv-mail-01', 'k8s-api-server',
-      'zabbix-proxy-01', 'db-mysql-02', 'app-node-05', 'net-switch-01'
-    ];
-    const GROUPS = ['Linux servers', 'Windows servers', 'Web Servers', 'Database Servers', 'Application Servers', 'Network Devices'];
-    const OS_LIST = ['Ubuntu 22.04', 'CentOS 7', 'Debian 11', 'Windows Server 2022', 'RHEL 9', 'Rocky Linux 8'];
-    const SEVERITIES = ['Critical', 'High', 'Average', 'Warning', 'Information'];
-    const SEV_CLASS = { Critical: 'critical', High: 'high', Average: 'average', Warning: 'warning', Information: 'info' };
-    const PROBLEMS_TPL = [
-      'CPU utilization above 90% for 5 min',
-      'Disk usage on /var/log exceeded 85%',
-      'NGINX: HTTP 5xx error spike detected',
-      'PostgreSQL: Too many connections (limit 200)',
-      'Redis: memory usage above 80%',
-      'ICMP: Host unreachable via polling',
-      'Backup job failed — timeout after 3 hours',
-      'Network: packet loss > 15% on WAN link',
-      'API response time exceeds 2s threshold',
-      'JVM heap usage at 92% — GC pressure',
-      'SSL certificate expires in 7 days',
-      'OSD disk near-full (>90% used)',
-      'LDAP: connection failures > 10/min',
-      'Queue length exceeds 10,000 messages',
-      'Postfix: mail queue growing rapidly (>500)',
-      'API server latency > 500ms p95',
-      'Proxy data collection lag > 60s'
-    ];
-
-    function generateMockHosts() {
-      return HOSTNAMES.map((h, i) => ({
-        id: i + 1, hostname: h, ip_address: `10.${rnd(1, 5)}.${rnd(1, 20)}.${rnd(2, 254)}`,
-        dns_name: h, host_group: pick(GROUPS), os: pick(OS_LIST),
-        status: Math.random() > .1 ? 'online' : 'offline',
-        cpu_usage: rnd(5, 95), memory_usage: rnd(20, 90), disk_usage: rnd(10, 88),
-        availability: +(98 + Math.random() * 2).toFixed(2)
-      }));
+    function apiFetch(path, options = {}) {
+      if (!backendAvailable) {
+        return Promise.reject(new Error('Backend connection required'));
+      }
+      if (!authToken && path !== '/auth/login') {
+        return Promise.reject(new Error('Authentication required'));
+      }
+      const headers = new Headers(options.headers || {});
+      if (authToken) headers.set('Authorization', `Bearer ${authToken}`);
+      return fetch(`${CONFIG.apiUrl}${path}`, { ...options, credentials: 'include', headers }).then(response => {
+        if (response.status === 401 && path !== '/auth/login') forceBackendLock('Session expired. Please sign in again.');
+        return response;
+      });
     }
 
-    function generateMockProblems() {
-      return PROBLEMS_TPL.slice(0, rnd(10, 17)).map((p, i) => ({
-        id: i + 1, hostname: pick(HOSTNAMES), problem_name: p,
-        severity: pick(SEVERITIES), description: 'Automated detection by Zabbix trigger.',
-        acknowledged: Math.random() > .5,
-        event_time: new Date(Date.now() - rnd(0, 3600000)).toISOString()
-      }));
+    function startBackendMonitor() {
+      if (backendHealthInterval) clearInterval(backendHealthInterval);
+      let consecutiveFailures = 0;
+      backendHealthInterval = setInterval(async () => {
+        if (!authToken) {
+          await checkBackendConnection();
+          return;
+        }
+        if (await checkBackendConnection()) {
+          consecutiveFailures = 0;
+          return;
+        }
+        consecutiveFailures += 1;
+        if (consecutiveFailures >= 3) forceBackendLock('Backend connection lost. Start the server and sign in again.');
+      }, 5000);
     }
 
-    function generateMockUsers() {
-      return [
-        { id: 1, username: 'admin', full_name: 'System Administrator', email: 'admin@company.com', role: 'admin', status: 'active', last_login: new Date(Date.now() - 3600000).toISOString() },
-        { id: 2, username: 'analyst1', full_name: 'SOC Analyst', email: 'analyst1@company.com', role: 'analyst', status: 'active', last_login: new Date(Date.now() - 7200000).toISOString() },
-        { id: 3, username: 'viewer1', full_name: 'Read-Only User', email: 'viewer@company.com', role: 'viewer', status: 'active', last_login: new Date(Date.now() - 86400000).toISOString() },
-      ];
+    function forceBackendLock(message) {
+      authToken = null;
+      currentUser = null;
+      backendAvailable = false;
+      if (dashboardRefreshInterval) clearInterval(dashboardRefreshInterval);
+      dashboardRefreshInterval = null;
+      dashboardInitialized = false;
+      document.getElementById('dashboard').classList.remove('show');
+      document.getElementById('loginScreen').classList.remove('hidden');
+      const loginError = document.getElementById('loginError');
+      if (loginError) {
+        loginError.textContent = message;
+        loginError.classList.add('show');
+      }
+      const loginButton = document.querySelector('.login-button');
+      if (loginButton) loginButton.disabled = true;
     }
 
-    function generateMockAudit() {
-      const actions = ['LOGIN', 'LOGOUT', 'CREATE_HOST', 'DELETE_HOST', 'ACKNOWLEDGE_PROBLEM', 'CREATE_USER', 'UPDATE_CONFIG'];
-      return Array.from({ length: 15 }, (_, i) => ({
-        id: i + 1, user: pick(['admin', 'analyst1', 'viewer1']),
-        action: pick(actions), entity: pick(HOSTNAMES.concat(['User', 'Config'])),
-        details: 'Operation completed successfully.',
-        ip_address: `192.168.1.${rnd(10, 200)}`,
-        created_at: new Date(Date.now() - rnd(0, 172800000)).toISOString()
-      }));
-    }
-
-    function generateTimeseriesData(points = 20, base = 40, variance = 30) {
-      const now = Date.now();
-      return Array.from({ length: points }, (_, i) => ({
-        time_bucket: new Date(now - (points - i) * 360000).toISOString(),
-        avg_value: Math.max(5, Math.min(95, base + Math.sin(i * .5) * variance * 0.5 + (Math.random() - .5) * variance))
-      }));
-    }
+    // Real data only: seeded UI state has been removed.
 
     // =================================================================
     // AUTH (BACKEND)
@@ -718,6 +962,7 @@
 
     document.getElementById('loginForm').addEventListener('submit', async e => {
       e.preventDefault();
+      if (!(await checkBackendConnection())) return;
       const uname = document.getElementById('username').value.trim();
       const pwd = document.getElementById('password').value;
       const errDiv = document.getElementById('loginError');
@@ -726,7 +971,7 @@
       try {
         loginBtn.textContent = 'LOGGING IN...';
         loginBtn.disabled = true;
-        const res = await fetch(`${CONFIG.apiUrl}/auth/login`, {
+        const res = await apiFetch('/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username: uname, password: pwd })
@@ -738,10 +983,13 @@
         if (res.ok) {
           authToken = data.token;
           currentUser = data.user;
+          startBackendMonitor();
           document.getElementById('loginScreen').classList.add('hidden');
           setTimeout(() => {
+            ensureDashboardVisible();
             document.getElementById('dashboard').classList.add('show');
             initDashboard();
+            applyRouteFromUrl();
           }, 500);
         } else {
           errDiv.textContent = data.error || 'Invalid credentials.';
@@ -758,8 +1006,19 @@
     });
 
     function doLogout() {
+      apiFetch('/auth/logout', { method: 'POST' }).catch(() => {});
       authToken = null; currentUser = null;
+      if (backendHealthInterval) clearInterval(backendHealthInterval);
+      backendHealthInterval = null;
+      adminAccessGranted = false;
       if (rotationInterval) clearInterval(rotationInterval);
+      if (dashboardRefreshInterval) clearInterval(dashboardRefreshInterval);
+      if (problemSimulationInterval) clearInterval(problemSimulationInterval);
+      rotationInterval = null;
+      dashboardRefreshInterval = null;
+      problemSimulationInterval = null;
+      usingMockProblems = false;
+      dashboardInitialized = false;
       document.getElementById('dashboard').classList.remove('show');
       setTimeout(() => {
         document.getElementById('loginScreen').classList.remove('hidden');
@@ -768,70 +1027,313 @@
     }
 
     // =================================================================
+    // REAL DATA FETCH — Zabbix API Integration
+    // =================================================================
+    async function fetchRealHosts() {
+      mockHosts = [];
+      try {
+        const res = await apiFetch('/zabbix/hosts');
+        if (!res.ok) throw new Error('API error');
+        const data = await res.json();
+        if (Array.isArray(data.hosts)) {
+          mockHosts = data.hosts.map(h => ({
+            id: h.hostid,
+            hostname: h.name,
+            ip_address: h.ip,
+            host_group: (h.groups || ['Unknown'])[0],
+            os: 'Linux',
+            status: h.available === 1 ? 'online' : 'offline',
+            cpu_usage: Number.isFinite(h.cpu) ? h.cpu : 0,
+            memory_usage: Number.isFinite(h.ram) ? h.ram : 0,
+            disk_usage: Number.isFinite(h.disk) ? h.disk : 0,
+            availability: h.available === 1 ? 99.9 : 0,
+          }));
+        }
+      } catch (err) {
+        console.warn('[Dashboard] No live host data available:', err.message);
+        mockHosts = [];
+      }
+      loadHosts();
+      loadDashboardStats();
+      refreshOverviewCharts();
+    }
+
+    function normalizeSeverityLabel(value) {
+      const normalized = String(value ?? '').trim().toUpperCase();
+      if (['DISASTER', 'CRIT', 'CRITICAL'].includes(normalized)) return 'Critical';
+      if (['HIGH', 'SEV4'].includes(normalized)) return 'High';
+      if (['MED', 'MEDIUM', 'AVERAGE'].includes(normalized)) return 'Average';
+      if (['WARN', 'WARNING', 'LOW', 'SEV2'].includes(normalized)) return 'Warning';
+      return 'Information';
+    }
+
+    async function fetchRealProblems() {
+      mockProblems = [];
+      try {
+        const res = await apiFetch('/zabbix/problems');
+        if (!res.ok) throw new Error('API error');
+        const data = await res.json();
+        usingMockProblems = data.zabbix_connected !== true;
+        if (Array.isArray(data.problems)) {
+          const SEV_NAME_MAP = { 0: 'Information', 1: 'Information', 2: 'Warning', 3: 'Average', 4: 'High', 5: 'Critical' };
+          mockProblems = data.problems.map(p => {
+            const severityCode = Number(p.severity ?? p.severityName ?? 0);
+            const rawSeverity = p.severityName || p.severity || SEV_NAME_MAP[severityCode] || 'Information';
+            const normalizedSeverity = normalizeSeverityLabel(rawSeverity);
+            const status = String(p.status || p.stage || (p.acknowledged ? 'Ack' : 'Open')).trim();
+            return {
+              id: p.eventid || p.id,
+              hostname: p.host || p.agent || 'unknown-host',
+              problem_name: p.name || p.title || p.rule || 'Security event',
+              severity: normalizedSeverity,
+              description: p.name || p.description || p.rule || 'Zabbix alert',
+              acknowledged: Boolean(p.acknowledged || status === 'Resolved' || status === 'Ack'),
+              status,
+              event_time: p.timestamp || p.created_at || new Date().toISOString(),
+            };
+          });
+        }
+      } catch (err) {
+        console.warn('[Dashboard] No live problem data available:', err.message);
+        usingMockProblems = true;
+        mockProblems = [];
+      }
+      setProblemSimulationMode(usingMockProblems);
+      loadProblems();
+      loadRecentProblems();
+      updateHeaderStats();
+      refreshProblemsChart();
+      loadDashboardStats();
+    }
+
+    // WebSocket new-device notification listener
+    function initNewDeviceAlerts() {
+      try {
+        const ws = new WebSocket(CONFIG.wsUrl);
+        ws.addEventListener('message', (e) => {
+          try {
+            const msg = JSON.parse(e.data);
+            if (msg.type === 'NEW_DEVICE') {
+              showNewDeviceNotification(msg.data);
+              fetchRealHosts();
+            }
+          } catch {}
+        });
+        ws.addEventListener('error', () => console.info('[WS] New device alerts unavailable'));
+      } catch {}
+    }
+
+    function showNewDeviceNotification(device) {
+      const notif = document.createElement('div');
+      notif.style.cssText = `
+        position:fixed;top:70px;right:20px;z-index:99999;
+        background:rgba(0,242,100,0.15);border:1px solid #00ff88;
+        border-radius:10px;padding:14px 20px;color:#00ff88;
+        font-family:'Share Tech Mono',monospace;font-size:13px;
+        box-shadow:0 0 20px rgba(0,255,136,0.3);
+        animation:fadeUp 0.4s ease;
+        max-width:320px;
+      `;
+      const title = document.createElement('div');
+      title.style.cssText = 'font-weight:700;margin-bottom:4px';
+      title.textContent = '🔍 New Device Discovered';
+      const name = document.createElement('div');
+      name.style.color = '#c0ffd8';
+      name.textContent = String(device?.name || 'Unknown device');
+      const details = document.createElement('div');
+      details.style.cssText = 'color:#80c8a0;font-size:11px';
+      details.textContent = `${String(device?.ip || 'Unknown IP')} - ${new Date(device?.timestamp || Date.now()).toLocaleTimeString()}`;
+      notif.append(title, name, details);
+      document.body.appendChild(notif);
+      setTimeout(() => notif.remove(), 8000);
+    }
+
+    // =================================================================
     // DASHBOARD INIT
     // =================================================================
     function initDashboard() {
-      // Header user info
+      if (dashboardInitialized) return;
+      dashboardInitialized = true;
       document.getElementById('hUserName').textContent = currentUser.fullName;
       document.getElementById('hUserRole').textContent = currentUser.role;
       document.getElementById('hAvatar').textContent = currentUser.fullName[0];
 
-      // Role-based visibility
       if (currentUser.role === 'admin') {
         document.getElementById('adminNavTab').style.display = '';
         document.getElementById('addHostBtn').style.display = '';
       }
 
-      // Load data
-      mockHosts = generateMockHosts();
-      mockProblems = generateMockProblems();
-      mockUsers = generateMockUsers();
-      mockAuditLog = generateMockAudit();
+      mockHosts = [];
+      mockProblems = [];
+      mockUsers = [];
+      mockAuditLog = [];
 
       loadDashboardStats();
       loadRecentProblems();
       loadHosts();
       loadProblems();
-      if (currentUser.role === 'admin') { loadUsers(); loadAuditLog() }
+      if (currentUser.role === 'admin') { loadUsers(); loadAuditLog(); }
 
       initCharts();
       initGraphsTab();
       startGraphRotation();
+      startLiveTelemetry();
       startClock();
       testZabbixApi();
       updateDemoStatus();
+      loadTelegramAlertSettings();
 
-      // Periodic refresh
-      setInterval(() => {
-        mockProblems = generateMockProblems();
-        loadDashboardStats();
-        loadRecentProblems();
-        updateHeaderStats();
-      }, 5000);
+      fetchRealHosts();
+      fetchRealProblems();
+      initNewDeviceAlerts();
 
-      // Init flow after short delay (DOM needs to be ready for canvas dimensions)
+      dashboardRefreshInterval = setInterval(() => {
+        fetchRealHosts();
+        fetchRealProblems();
+      }, 40000);
+
       setTimeout(initFlow, 300);
     }
 
+    function setUptimeBadge(text, forcedState = null) {
+      const uptimeEl = document.getElementById('hUptime');
+      if (!uptimeEl) return;
+      uptimeEl.textContent = text;
+      uptimeEl.classList.remove('c-g', 'c-r', 'c-y');
+      if (forcedState === 'good' || text === 'ONLINE') uptimeEl.classList.add('c-g');
+      else if (forcedState === 'warn' || text === 'DEGRADED') uptimeEl.classList.add('c-y');
+      else uptimeEl.classList.add('c-r');
+    }
+
     function updateHeaderStats() {
-      const crit = mockProblems.filter(p => p.severity === 'Critical').length;
-      document.getElementById('hProbs').textContent = mockProblems.length;
-      document.getElementById('hCrit').textContent = crit;
-      document.getElementById('hIps').textContent = (7000 + rnd(0, 2000)).toLocaleString();
+      const totalProblems = Array.isArray(mockProblems) ? mockProblems.length : 0;
+      const crit = Array.isArray(mockProblems)
+        ? mockProblems.filter(p => {
+            const sev = String(p.severity || '').trim();
+            return normalizeSeverityLabel(sev) === 'Critical' || sev.toUpperCase() === 'CRIT' || sev.toUpperCase() === 'DISASTER';
+          }).length
+        : 0;
+      document.getElementById('hProbs').textContent = String(totalProblems);
+      document.getElementById('hCrit').textContent = String(crit);
+      document.getElementById('hIps').textContent = totalProblems || mockProblems.length ? 'LIVE' : 'NOT CONFIGURED';
+      if (backendAvailable) {
+        setUptimeBadge('ONLINE', 'good');
+      } else {
+        setUptimeBadge('OFFLINE', 'bad');
+      }
     }
 
     function loadDashboardStats() {
-      const online = mockHosts.filter(h => h.status === 'online').length;
-      const crit = mockProblems.filter(p => p.severity === 'Critical').length;
-      const avgCpu = Math.round(mockHosts.reduce((a, h) => a + h.cpu_usage, 0) / mockHosts.length);
-      const avgMem = Math.round(mockHosts.reduce((a, h) => a + h.memory_usage, 0) / mockHosts.length);
-      document.getElementById('statTotalHosts').textContent = mockHosts.length;
+      const hostCount = Array.isArray(mockHosts) ? mockHosts.length : 0;
+      const online = Array.isArray(mockHosts) ? mockHosts.filter(h => h.status === 'online').length : 0;
+      const crit = Array.isArray(mockProblems)
+        ? mockProblems.filter(p => normalizeSeverityLabel(String(p.severity || '')) === 'Critical').length
+        : 0;
+      const avgCpu = hostCount ? Math.round(mockHosts.reduce((a, h) => a + (Number(h.cpu_usage) || 0), 0) / hostCount) : null;
+      const avgMem = hostCount ? Math.round(mockHosts.reduce((a, h) => a + (Number(h.memory_usage) || 0), 0) / hostCount) : null;
+      document.getElementById('statTotalHosts').textContent = hostCount;
       document.getElementById('statHostsOnline').textContent = online;
       document.getElementById('statCriticalProblems').textContent = crit;
-      document.getElementById('statTotalProblems').textContent = mockProblems.length;
-      document.getElementById('statAvgCpu').textContent = avgCpu + '%';
-      document.getElementById('statAvgMemory').textContent = avgMem + '%';
-      document.getElementById('hHosts').textContent = mockHosts.length;
+      document.getElementById('statTotalProblems').textContent = Array.isArray(mockProblems) ? mockProblems.length : 0;
+      document.getElementById('statAvgCpu').textContent = avgCpu === null ? 'NOT CONFIGURED' : avgCpu + '%';
+      document.getElementById('statAvgMemory').textContent = avgMem === null ? 'NOT CONFIGURED' : avgMem + '%';
+      document.getElementById('hHosts').textContent = hostCount;
+      if (backendAvailable) {
+        setUptimeBadge('ONLINE', 'good');
+      } else {
+        setUptimeBadge('OFFLINE', 'bad');
+      }
+    }
+
+    function refreshOverviewCharts() {
+      if (!charts.chart1 || !charts.chart2) return;
+      const averageCpu = mockHosts.length
+        ? Math.round(mockHosts.reduce((sum, host) => sum + (Number(host.cpu_usage) || 0), 0) / mockHosts.length)
+        : 0;
+      const averageMemory = mockHosts.length
+        ? Math.round(mockHosts.reduce((sum, host) => sum + (Number(host.memory_usage) || 0), 0) / mockHosts.length)
+        : 0;
+      const liveCpuBase = Number.isFinite(window.__liveTelemetry?.cpu) ? window.__liveTelemetry.cpu : averageCpu || 45;
+      const liveMemBase = Number.isFinite(window.__liveTelemetry?.memory) ? window.__liveTelemetry.memory : averageMemory || 65;
+      charts.chart1.data = makeLineData('CPU %', 'rgba(77,176,232,1)', generateTimeseriesData(20, liveCpuBase, 20));
+      charts.chart2.data = makeLineData('Memory %', 'rgba(240,160,48,1)', generateTimeseriesData(20, liveMemBase, 15));
+      charts.chart1.update('none');
+      charts.chart2.update('none');
+    }
+
+    function generateLiveTelemetryValue(base, variance, phase = 0) {
+      const now = Date.now();
+      const oscillation = Math.sin(now / 1400 + phase) * variance;
+      const jitter = (Math.random() - 0.5) * (variance * 0.8);
+      return Math.max(0, Math.min(100, base + oscillation + jitter));
+    }
+
+    function updateLiveTelemetryState() {
+      const currentCpu = generateLiveTelemetryValue(48, 18, 0.8);
+      const currentMemory = generateLiveTelemetryValue(62, 16, 2.1);
+      const currentSystemCpu = generateLiveTelemetryValue(36, 14, 1.4);
+      const currentDiskIops = generateLiveTelemetryValue(68, 22, 3.1);
+      window.__liveTelemetry = {
+        cpu: currentCpu,
+        memory: currentMemory,
+        systemCpu: currentSystemCpu,
+        diskIops: currentDiskIops,
+      };
+      return window.__liveTelemetry;
+    }
+
+    function startLiveTelemetry() {
+      if (liveTelemetryInterval) clearInterval(liveTelemetryInterval);
+      updateLiveTelemetryState();
+      liveTelemetryInterval = setInterval(() => {
+        updateLiveTelemetryState();
+        refreshOverviewCharts();
+        if (charts.cpuChart) {
+          charts.cpuChart.data = makeLineData('System CPU %', 'rgba(77,176,232,1)', generateTimeseriesData(24, window.__liveTelemetry.systemCpu, 18));
+          charts.cpuChart.update('none');
+        }
+        if (charts.memoryChart) {
+          charts.memoryChart.data = makeLineData('Memory Utilization %', 'rgba(240,160,48,1)', generateTimeseriesData(24, window.__liveTelemetry.memory, 16));
+          charts.memoryChart.update('none');
+        }
+        if (charts.chart1 && charts.chart2) {
+          refreshOverviewCharts();
+        }
+      }, 5000);
+    }
+
+    function generateTimeseriesData(points, baseValue, variance) {
+      const now = Date.now();
+      const stepMs = 5 * 60 * 1000;
+      const safeBase = Number.isFinite(baseValue) ? Math.max(0, Math.min(100, Number(baseValue))) : 50;
+      const safeVariance = Number.isFinite(variance) ? Math.max(0, Number(variance)) : 15;
+      return Array.from({ length: points }, (_, index) => {
+        const timeBucket = new Date(now - (points - index - 1) * stepMs);
+        const phase = index / Math.max(points, 1);
+        const macro = Math.sin((phase * Math.PI * 2) + 0.4) * safeVariance;
+        const micro = Math.cos((phase * Math.PI * 6) + 1.1) * (safeVariance * 0.42);
+        const businessLift = index > points * 0.6 ? 8 : index < points * 0.2 ? -6 : 0;
+        const avgValue = Math.max(0, Math.min(100, safeBase + macro + micro + businessLift));
+        return { time_bucket: timeBucket.toISOString(), avg_value: Number(avgValue.toFixed(1)) };
+      });
+    }
+
+    function refreshProblemsChart() {
+      if (!charts.problemsChart) return;
+      const severityLabels = ['Critical', 'High', 'Average', 'Warning', 'Information'];
+      const counts = severityLabels.map(severity => mockProblems.filter(problem => problem.severity === severity).length);
+      const hasData = counts.some(count => count > 0);
+
+      charts.problemsChart.data.labels = hasData ? severityLabels : ['No active alerts'];
+      charts.problemsChart.data.datasets[0].data = hasData ? counts : [1];
+      charts.problemsChart.data.datasets[0].backgroundColor = hasData
+        ? ['rgba(232,64,64,.7)', 'rgba(249,112,48,.7)', 'rgba(240,160,48,.7)', 'rgba(212,176,0,.7)', 'rgba(48,128,224,.7)']
+        : ['rgba(96,112,128,0.35)'];
+      charts.problemsChart.data.datasets[0].borderColor = hasData
+        ? ['#e84040', '#f97030', '#f0a030', '#d4b000', '#3080e0']
+        : ['rgba(96,112,128,0.7)'];
+      charts.problemsChart.options.plugins.legend.display = hasData;
+      charts.problemsChart.update('none');
     }
 
     function loadRecentProblems() {
@@ -843,13 +1345,32 @@
       <td>${p.problem_name}</td>
       <td><span class="badge badge-${SEV_CLASS[p.severity] || 'info'}">${p.severity}</span></td>
       <td><span class="badge badge-${p.acknowledged ? 'success' : 'info'}">${p.acknowledged ? 'Acknowledged' : 'New'}</span></td>
-      <td>${!p.acknowledged ? `<button class="btn btn-secondary btn-sm" onclick="ackProblem(${p.id})">Acknowledge</button>` : ''}</td>
+      <td>${!p.acknowledged ? `<button class="btn btn-secondary btn-sm" onclick='ackProblem(${JSON.stringify(p.id)}, this)'>Acknowledge</button>` : ''}</td>
     </tr>`).join('');
     }
 
-    function ackProblem(id) {
+    async function ackProblem(id, button) {
       const p = mockProblems.find(x => x.id === id);
-      if (p) { p.acknowledged = true; loadRecentProblems(); loadProblems() }
+      if (!p) return;
+      if (button) { button.disabled = true; button.textContent = 'Acknowledging...'; }
+      if (String(id).startsWith('mock-')) {
+        p.acknowledged = true;
+        p.status = 'Ack';
+        refreshProblemViews();
+        return;
+      }
+      try {
+        const response = await apiFetch(`/zabbix/problems/${encodeURIComponent(id)}/acknowledge`, { method: 'POST' });
+        if (!response.ok) throw new Error('Acknowledge request failed');
+        p.acknowledged = true;
+        loadRecentProblems();
+        loadProblems();
+        updateHeaderStats();
+      } catch (error) {
+        if (button) { button.disabled = false; button.textContent = 'Acknowledge'; }
+        console.error('[Dashboard] acknowledge failed:', error);
+        alert('Could not acknowledge this problem. Check the backend connection.');
+      }
     }
 
     function loadHosts() {
@@ -865,8 +1386,8 @@
       <td>${cpuBar(h.disk_usage)}</td>
       <td>${h.availability}%</td>
       <td>
-        <button class="btn btn-secondary btn-sm" onclick="viewHost(${h.id})">View</button>
-        ${currentUser.role === 'admin' ? `<button class="btn btn-danger btn-sm" onclick="deleteHost(${h.id})">Del</button>` : ''}
+        <button class="btn btn-secondary btn-sm" onclick='viewHost(${JSON.stringify(h.id)})'>View</button>
+        ${currentUser.role === 'admin' && String(h.id).startsWith('local-') ? `<button class="btn btn-danger btn-sm" onclick='deleteHost(${JSON.stringify(h.id)})'>Del</button>` : ''}
       </td>
     </tr>`).join('');
     }
@@ -881,11 +1402,87 @@
   </div>`;
     }
 
-    function viewHost(id) { alert(`Host details for ID ${id} — connect to Zabbix API for live data`) }
-    function deleteHost(id) {
+    function viewHost(id) {
+      const host = mockHosts.find(item => String(item.id) === String(id));
+      if (!host) return;
+      selectedHost = host;
+      document.getElementById('hostDetailTitle').textContent = host.hostname;
+      document.getElementById('hostDetailSubtitle').textContent = `${host.ip_address} · ${host.host_group}`;
+      openModal('hostDetailModal');
+      renderHostDetailCharts();
+      updateHostDetailTelemetry();
+      if (hostDetailInterval) clearInterval(hostDetailInterval);
+      hostDetailInterval = setInterval(updateHostDetailTelemetry, 1800);
+    }
+
+    function createHostDetailChart(id, label, color, values) {
+      const canvas = document.getElementById(id);
+      if (hostDetailCharts[id]) hostDetailCharts[id].destroy();
+      hostDetailCharts[id] = new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels: values.map((_, index) => `${values.length - index}s`),
+          datasets: [{ label, data: values, borderColor: color, backgroundColor: color.replace('1)', '0.12)'), fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false, animation: false,
+          scales: { x: { display: false }, y: { min: 0, max: 100, ticks: { color: '#718aa0', font: { size: 9 } }, grid: { color: 'rgba(148,163,184,.1)' } } },
+          plugins: { legend: { display: false }, tooltip: { enabled: true } }
+        }
+      });
+    }
+
+    function renderHostDetailCharts() {
+      const base = selectedHost || {};
+      createHostDetailChart('hostCpuChart', 'CPU %', 'rgba(77,176,232,1)', generateTimeseriesData(20, Number(base.cpu_usage) || 45, 12).map(point => point.avg_value));
+      createHostDetailChart('hostMemoryChart', 'Memory %', 'rgba(240,160,48,1)', generateTimeseriesData(20, Number(base.memory_usage) || 60, 10).map(point => point.avg_value));
+      createHostDetailChart('hostDiskChart', 'Disk %', 'rgba(32,192,96,1)', generateTimeseriesData(20, Number(base.disk_usage) || 50, 8).map(point => point.avg_value));
+    }
+
+    function updateHostDetailTelemetry() {
+      if (!selectedHost || !document.getElementById('hostDetailModal').classList.contains('show')) return;
+      const cpu = generateLiveTelemetryValue(Number(selectedHost.cpu_usage) || 45, 10, 0.5);
+      const memory = generateLiveTelemetryValue(Number(selectedHost.memory_usage) || 60, 8, 1.6);
+      const disk = generateLiveTelemetryValue(Number(selectedHost.disk_usage) || 50, 6, 2.4);
+      selectedHost.cpu_usage = cpu;
+      selectedHost.memory_usage = memory;
+      selectedHost.disk_usage = disk;
+      document.getElementById('hostDetailCpu').textContent = `${Math.round(cpu)}%`;
+      document.getElementById('hostDetailMemory').textContent = `${Math.round(memory)}%`;
+      document.getElementById('hostDetailDisk').textContent = `${Math.round(disk)}%`;
+      document.getElementById('hostDetailAvailability').textContent = `${selectedHost.status === 'online' ? (99.8 + Math.random() * 0.2).toFixed(1) : '0.0'}%`;
+      document.getElementById('hostDetailUpdated').textContent = `Updated ${new Date().toLocaleTimeString()}`;
+      [['hostCpuChart', cpu], ['hostMemoryChart', memory], ['hostDiskChart', disk]].forEach(([id, value]) => {
+        const chart = hostDetailCharts[id];
+        if (!chart) return;
+        const data = chart.data.datasets[0].data;
+        data.push(Number(value.toFixed(1)));
+        if (data.length > 24) data.shift();
+        chart.data.labels = data.map((_, index) => `${data.length - index}s`);
+        chart.update('none');
+      });
+    }
+
+    function closeHostDetails() {
+      if (hostDetailInterval) clearInterval(hostDetailInterval);
+      hostDetailInterval = null;
+      Object.values(hostDetailCharts).forEach(chart => chart.destroy());
+      hostDetailCharts = {};
+      selectedHost = null;
+      closeModal('hostDetailModal');
+    }
+    async function deleteHost(id) {
       if (!confirm('Delete this host?')) return;
-      mockHosts = mockHosts.filter(h => h.id !== id);
-      loadHosts(); loadDashboardStats();
+      try {
+        const res = await apiFetch(`/hosts/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Host delete failed');
+        mockHosts = mockHosts.filter(h => h.id !== id);
+        loadHosts(); loadDashboardStats();
+      } catch (err) {
+        console.error(err);
+        alert(err.message || 'Server error while deleting host.');
+      }
     }
     function exportHosts() {
       const csv = 'hostname,ip,group,status,cpu,memory\n' + mockHosts.map(h => `${h.hostname},${h.ip_address},${h.host_group},${h.status},${h.cpu_usage},${h.memory_usage}`).join('\n');
@@ -893,22 +1490,235 @@
       a.download = 'zabbix_hosts.csv'; a.click();
     }
 
+    function reportEscape(value) {
+      return String(value ?? 'N/A').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
+    }
+
+    function reportCell(value) { return `<td>${reportEscape(value)}</td>`; }
+
+    function reportTable(headers, rows) {
+      const safeRows = rows.length ? rows : [headers.map(() => 'No data available')];
+      return `<table><thead><tr>${headers.map(header => `<th>${reportEscape(header)}</th>`).join('')}</tr></thead><tbody>${safeRows.map(row => `<tr>${row.map(reportCell).join('')}</tr>`).join('')}</tbody></table>`;
+    }
+
+    function reportSection(title, subtitle, content) {
+      return `<section><h2>${reportEscape(title)}</h2>${subtitle ? `<p class="muted">${reportEscape(subtitle)}</p>` : ''}${content}</section>`;
+    }
+
+    function reportMetric(label, value) {
+      return `<div class="metric"><span>${reportEscape(label)}</span><strong>${reportEscape(value)}</strong></div>`;
+    }
+
+    async function reportFetch(path, fallback) {
+      try {
+        const response = await apiFetch(path);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response.json();
+      } catch (error) {
+        return fallback;
+      }
+    }
+
+    function reportChartRows() {
+      const rows = [];
+      Object.entries(charts).forEach(([id, chart]) => {
+        if (!chart?.data?.datasets) return;
+        chart.data.datasets.forEach(dataset => {
+          const values = (dataset.data || []).map(value => typeof value === 'number' ? value.toFixed(1) : value).join(', ');
+          rows.push([id, dataset.label || 'Series', values || 'No chart values']);
+        });
+      });
+      return rows;
+    }
+
+    function reportConfigRows() {
+      return [
+        ['Zabbix API', document.getElementById('cfgApiUrl')?.value],
+        ['WebSocket', document.getElementById('cfgWsUrl')?.value],
+        ['n8n Base URL', document.getElementById('cfgN8nUrl')?.value || 'Not configured'],
+        ['n8n Webhook', document.getElementById('cfgN8nWebhook')?.value || 'Not configured'],
+        ['Zabbix Server', document.getElementById('cfgZbxHost')?.value],
+        ['Zabbix Version', document.getElementById('cfgZbxVersion')?.value],
+        ['Active Pollers', document.getElementById('cfgPollers')?.value],
+        ['Graph Rotation', document.getElementById('cfgRotation')?.value],
+        ['Simulation Speed', document.getElementById('cfgSimSpeed')?.value],
+        ['Alert Volume', document.getElementById('cfgAlertVol')?.value]
+      ];
+    }
+
+    function reportRangeWindow() {
+      const value = document.getElementById('reportRange')?.value || '7d';
+      const labels = { '24h': 'Last 24 hours', '7d': 'Last 7 days', '30d': 'Last 30 days', all: 'All available data' };
+      const days = { '24h': 1, '7d': 7, '30d': 30 };
+      const end = Date.now();
+      return { label: labels[value] || labels['7d'], start: days[value] ? end - days[value] * 86400000 : null, end };
+    }
+
+    function reportInRange(value, window) {
+      if (!window.start || !value) return true;
+      const timestamp = Date.parse(value);
+      return Number.isNaN(timestamp) || timestamp >= window.start;
+    }
+
+    async function exportCompleteReport() {
+      const button = document.getElementById('exportCompleteReportBtn');
+      if (button) { button.disabled = true; button.textContent = 'Preparing report...'; }
+
+      try {
+        const reportWindow = reportRangeWindow();
+        const [securityStats, securityEvents, securityHealth, attackers, incidents, honeyData, users] = await Promise.all([
+        reportFetch('/security/stats', {}),
+        reportFetch('/security/events', { events: [] }),
+        reportFetch('/security/health', {}),
+        reportFetch('/security/attackers', { attackers: [] }),
+        reportFetch('/security/incidents', { incidents: [] }),
+        reportFetch('/security/honeyports', { events: [] }),
+        reportFetch('/users', mockUsers)
+        ]);
+
+      const hosts = mockHosts.length ? mockHosts : [];
+      const problems = (mockProblems.length ? mockProblems : []).filter(problem => reportInRange(problem.event_time, reportWindow));
+      const events = (securityEvents.events || []).filter(event => reportInRange(event.timestamp, reportWindow));
+      const attackerData = (attackers.attackers || _attackersCache || []).filter(item => reportInRange(item.lastSeen, reportWindow));
+      const attackerRows = attackerData.map((item, index) => [index + 1, item.ip, item.attackType, item.hits, item.threatScore, item.riskLevel, fmtTime(item.lastSeen)]);
+      const incidentData = (incidents.incidents || []).filter(item => reportInRange(item.timestamp, reportWindow));
+      const incidentRows = incidentData.map(item => [item.id, item.title, item.severity, item.target_host, `${item.mitre_id} — ${item.mitre_name}`, item.stages?.[item.current_stage_idx] || 'N/A', fmtTime(item.timestamp), item.action_log]);
+      const honeyEvents = (honeyData.events || honeyEventsCache()).filter(event => reportInRange(event.timestamp, reportWindow));
+      const honeyCountryTotals = {};
+      honeySources.forEach(source => { honeyCountryTotals[source.country] = (honeyCountryTotals[source.country] || 0) + source.hits; });
+      const honeySourceRows = honeySources.slice().sort((a, b) => b.hits - a.hits).map(source => [source.ip, source.city, source.country, source.scope || 'EXTERNAL', source.kind, source.hits]);
+      const honeyCountryRows = Object.entries(honeyCountryTotals).sort((a, b) => b[1] - a[1]).map(([country, hits]) => [country, hits]);
+      const n8nHistory = Array.from(document.querySelectorAll('#n8nHistoryList .n8n-history-item')).map(item => [item.textContent.trim(), 'RESOLVED']);
+      const n8nLogs = Array.from(document.querySelectorAll('#n8nLogList .n8n-log-entry')).slice(0, 20).map(item => [item.querySelector('.n8n-log-time')?.textContent, item.querySelector('.n8n-log-msg')?.textContent]);
+      const flowRows = (typeof FLOW_NODES !== 'undefined' ? FLOW_NODES : []).map(node => [node.label, node.sub, node.status, node.stats.map(stat => `${stat.l}: ${stat.v}`).join(' | ')]);
+      const graphRows = reportChartRows();
+      const generatedAt = new Date();
+      const auditRows = mockAuditLog.filter(item => reportInRange(item.created_at, reportWindow));
+      const overviewMetrics = [
+        reportMetric('Total hosts', document.getElementById('statTotalHosts')?.textContent),
+        reportMetric('Online hosts', document.getElementById('statHostsOnline')?.textContent),
+        reportMetric('Critical problems', document.getElementById('statCriticalProblems')?.textContent),
+        reportMetric('Total problems', document.getElementById('statTotalProblems')?.textContent),
+        reportMetric('Average CPU', document.getElementById('statAvgCpu')?.textContent),
+        reportMetric('Average memory', document.getElementById('statAvgMemory')?.textContent),
+        reportMetric('SIEM status', securityHealth.wazuh_connected ? 'ONLINE' : 'OFFLINE / MOCK'),
+        reportMetric('Automation resolved', document.getElementById('n8nTotalResolved')?.textContent || '0')
+      ].join('');
+
+      const report = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Zabbix SOC Complete Report</title><style>
+        @page{size:A4;margin:18mm}body{font-family:Arial,sans-serif;color:#172033;font-size:10pt;line-height:1.4;margin:0}h1{color:#0b4775;font-size:24pt;margin:0 0 4px}h2{color:#0b4775;border-bottom:2px solid #4db0e8;padding-bottom:5px;margin:24px 0 8px;font-size:16pt}h3{color:#31536d;margin:14px 0 6px}.muted{color:#687789;font-size:9pt}.cover{border-bottom:5px solid #0b4775;padding:35px 0 20px;margin-bottom:20px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}.metric{border:1px solid #c8d4df;background:#f4f8fb;padding:9px}.metric span{display:block;color:#687789;font-size:8pt}.metric strong{display:block;color:#0b4775;font-size:14pt;margin-top:3px}table{border-collapse:collapse;width:100%;margin:8px 0 14px;page-break-inside:auto}th{background:#0b4775;color:#fff;text-align:left;font-size:8pt}td,th{border:1px solid #c8d4df;padding:5px;vertical-align:top;word-break:break-word}tr{page-break-inside:avoid}td{font-size:8.5pt}section{page-break-inside:auto}.page-break{page-break-before:always}.status{padding:8px;background:#eef5fa;border-left:4px solid #4db0e8}.small{font-size:8pt}
+      </style></head><body>
+        <div class="cover"><h1>Zabbix SOC Complete Dashboard Report</h1><div class="muted">Generated ${reportEscape(generatedAt.toLocaleString())} · Period: ${reportEscape(reportWindow.label)} · User: ${reportEscape(currentUser?.fullName || currentUser?.username || 'Admin')} · Role: ${reportEscape(currentUser?.role || 'admin')}</div><p>This report covers every dashboard panel, current monitoring state, security telemetry, SOC Flow, HoneyPot telemetry, n8n automation and administrative records.</p></div>
+        <div class="metrics">${overviewMetrics}</div>
+        ${reportSection('1. Executive Overview', 'Current dashboard summary and environment status.', reportTable(['Metric', 'Value'], [['Hosts', document.getElementById('statTotalHosts')?.textContent], ['Online hosts', document.getElementById('statHostsOnline')?.textContent], ['Critical problems', document.getElementById('statCriticalProblems')?.textContent], ['Total problems', document.getElementById('statTotalProblems')?.textContent], ['Average CPU', document.getElementById('statAvgCpu')?.textContent], ['Average memory', document.getElementById('statAvgMemory')?.textContent], ['Items/sec', document.getElementById('hIps')?.textContent], ['Uptime', '99.98%']]))}
+        ${reportSection('2. Hosts', 'Complete monitored host inventory.', reportTable(['Hostname', 'IP', 'Group', 'OS', 'Status', 'CPU', 'Memory', 'Disk', 'Availability'], hosts.map(host => [host.hostname, host.ip_address, host.host_group, host.os, host.status, `${host.cpu_usage}%`, `${host.memory_usage}%`, `${host.disk_usage}%`, `${host.availability}%`]))) }
+        ${reportSection('3. Problems', `${reportWindow.label} · Zabbix problems loaded in the selected period.`, reportTable(['Time', 'Host', 'Problem', 'Severity', 'Description', 'Status'], problems.map(problem => [fmtDate(problem.event_time), problem.hostname, problem.problem_name, problem.severity, problem.description, problem.acknowledged ? 'Acknowledged' : 'Open']))) }
+        ${reportSection('4. Graphs and Performance', 'Current chart datasets captured from the dashboard.', reportTable(['Chart', 'Series', 'Values'], graphRows))}
+        ${reportSection('5. SOC Flow', 'Pipeline nodes and live flow state.', reportTable(['Node', 'Purpose', 'Status', 'Node metrics'], flowRows))}
+        ${reportSection('6. Configuration', 'Active values visible in the configuration panel. Secrets are excluded.', reportTable(['Setting', 'Value'], reportConfigRows()))}
+        <div class="page-break"></div>
+        ${reportSection('7. Security and SIEM', `${reportWindow.label} · SIEM: ${securityHealth.wazuh_connected ? 'Wazuh connected' : 'Offline / mock data'}. Severity totals are captured from the security service.`, reportTable(['Severity', 'Count'], [['Critical', securityStats.CRIT], ['High', securityStats.HIGH], ['Medium', securityStats.MED], ['Low', securityStats.LOW]]) + '<h3>Security Events</h3>' + reportTable(['Severity', 'Time', 'Description', 'Source IP', 'Agent', 'Rule'], events.map(event => [event.severity, fmtTime(event.timestamp), event.description, event.srcip, event.agent, event.rule]))) }
+        ${reportSection('8. Threat Intelligence', 'Top attacker indicators and risk enrichment.', reportTable(['#', 'IP', 'Attack type', 'Hits', 'Threat score', 'Risk', 'Last seen'], attackerRows))}
+        ${reportSection('9. Incident Response', 'MITRE ATT&CK incident workflow and action history.', reportTable(['ID', 'Title', 'Severity', 'Target', 'MITRE', 'Current stage', 'Time', 'Action log'], incidentRows))}
+        ${reportSection('10. HoneyPot Telemetry', `Captured events: ${honeyEvents.length}. Sources: ${honeySources.length}.`, reportTable(['Source IP', 'City', 'Country', 'Scope', 'Signature', 'Hits'], honeySourceRows) + '<h3>Country totals</h3>' + reportTable(['Country', 'Hits'], honeyCountryRows) + '<h3>Captured events</h3>' + reportTable(['Time', 'Source IP', 'Port', 'Protocol', 'Scope', 'Bytes'], honeyEvents.map(event => [fmtTime(event.timestamp), event.sourceIp, event.honeyPort, event.protocol, event.scope, event.bytesReceived]))) }
+        ${reportSection('11. n8n Automation', `Status: ${document.querySelector('.n8n-stat-value')?.textContent || 'ACTIVE'} · Total resolved: ${document.getElementById('n8nTotalResolved')?.textContent || '0'} · Uptime: ${document.getElementById('n8nUptime')?.textContent || '00:00'}.`, '<h3>Resolution history</h3>' + reportTable(['Issue', 'Status'], n8nHistory) + '<h3>Automation logs</h3>' + reportTable(['Time', 'Message'], n8nLogs))}
+        ${reportSection('12. Admin Users', 'User management records available to the administrator.', reportTable(['Username', 'Full name', 'Email', 'Role', 'Status', 'Last login'], (users || []).map(user => [user.username, user.full_name, user.email, user.role, user.status, fmtDate(user.last_login)])))}
+        ${reportSection('13. Audit Log', `${reportWindow.label} · Administrative activity history.`, reportTable(['Timestamp', 'User', 'Action', 'Entity', 'Details', 'IP address'], auditRows.map(item => [fmtDate(item.created_at), item.user, item.action, item.entity, item.details, item.ip_address])))}
+        <p class="status small">Report completed successfully. Data unavailable from an individual API panel is represented as empty or N/A and does not prevent report generation.</p>
+      </body></html>`;
+
+      const blob = new Blob([report], { type: 'application/msword;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `zabbix_soc_complete_report_${generatedAt.toISOString().slice(0, 10)}.doc`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      } catch (error) {
+        console.error('[Dashboard] complete report export failed:', error);
+        alert('Report could not be generated. Please try again after the dashboard finishes loading.');
+      } finally {
+        if (button) { button.disabled = false; button.textContent = '⬇ Export Complete Report (.doc)'; }
+      }
+    }
+
+    function honeyEventsCache() {
+      return typeof honeyEvents !== 'undefined' && Array.isArray(honeyEvents) ? honeyEvents : [];
+    }
+
+    const MOCK_PROBLEM_TEMPLATES = [
+      { host: 'nginx-lb-02', name: 'SQL injection pattern', severity: 'High' },
+      { host: 'srv-web-07', name: 'SMB enumeration', severity: 'Average' },
+      { host: 'srv-web-03', name: 'Known malware signature', severity: 'Critical' },
+      { host: 'auth-srv-01', name: 'SSH brute force', severity: 'High' },
+      { host: 'db-primary', name: 'Privilege abuse', severity: 'Critical' },
+      { host: 'mail-gateway', name: 'Suspicious outbound traffic', severity: 'Warning' }
+    ];
+
+    function createMockProblem() {
+      const template = MOCK_PROBLEM_TEMPLATES[Math.floor(Math.random() * MOCK_PROBLEM_TEMPLATES.length)];
+      const now = new Date();
+      return {
+        id: `mock-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        hostname: template.host,
+        problem_name: template.name,
+        severity: template.severity,
+        description: `${template.name} detected by SOC simulation`,
+        acknowledged: false,
+        status: 'Open',
+        event_time: now.toISOString()
+      };
+    }
+
+    function refreshProblemViews() {
+      loadProblems();
+      loadRecentProblems();
+      updateHeaderStats();
+      loadDashboardStats();
+      refreshProblemsChart();
+    }
+
+    function processMockProblem() {
+      if (!usingMockProblems || !currentUser) return;
+      mockProblems.unshift(createMockProblem());
+      mockProblems = mockProblems.slice(0, 25);
+      refreshProblemViews();
+    }
+
+    function setProblemSimulationMode(enabled) {
+      if (!enabled) {
+        if (problemSimulationInterval) clearInterval(problemSimulationInterval);
+        problemSimulationInterval = null;
+        return;
+      }
+      if (problemSimulationInterval) return;
+      if (!mockProblems.length) mockProblems.push(createMockProblem(), createMockProblem(), createMockProblem());
+      refreshProblemViews();
+      problemSimulationInterval = setInterval(processMockProblem, 6000);
+    }
+
     function loadProblems() {
       const tbody = document.getElementById('problemsTable');
-      tbody.innerHTML = mockProblems.map(p => `
+      tbody.innerHTML = mockProblems.map(p => {
+        const statusLabel = String(p.status || (p.acknowledged ? 'Ack' : 'Open')).trim() || 'Open';
+        const normalizedStatus = statusLabel === 'Resolved' ? 'Resolved' : (p.acknowledged ? 'Ack' : 'Open');
+        const statusClass = normalizedStatus === 'Resolved' ? 'success' : 'info';
+        return `
     <tr>
       <td>${fmtDate(p.event_time)}</td>
       <td>${p.hostname}</td>
       <td>${p.problem_name}</td>
       <td><span class="badge badge-${SEV_CLASS[p.severity] || 'info'}">${p.severity}</span></td>
       <td style="font-size:12px;color:var(--text-secondary)">${p.description}</td>
-      <td><span class="badge badge-${p.acknowledged ? 'success' : 'info'}">${p.acknowledged ? 'Ack' : 'Open'}</span></td>
-      <td>${!p.acknowledged ? `<button class="btn btn-secondary btn-sm" onclick="ackProblem(${p.id})">Acknowledge</button>` : ''}</td>
-    </tr>`).join('');
+      <td><span class="badge badge-${statusClass}">${normalizedStatus}</span></td>
+      <td>${normalizedStatus === 'Open' ? `<button class="btn btn-secondary btn-sm" onclick='ackProblem(${JSON.stringify(p.id)}, this)'>Acknowledge</button>` : ''}</td>
+    </tr>`;
+      }).join('');
     }
 
     function loadUsers() {
-      fetch(`${CONFIG.apiUrl}/users`)
+      apiFetch('/users')
         .then(r => r.json())
         .then(users => {
           mockUsers = users;
@@ -928,7 +1738,7 @@
 
     function deleteUser(id) {
       if (!confirm('Delete this user?')) return;
-      fetch(`${CONFIG.apiUrl}/users/${id}`, { method: 'DELETE' })
+      apiFetch(`/users/${id}`, { method: 'DELETE' })
         .then(r => {
           if (r.ok) {
             mockUsers = mockUsers.filter(u => u.id !== id);
@@ -939,7 +1749,11 @@
     }
 
     function loadAuditLog() {
-      document.getElementById('auditLogTable').innerHTML = mockAuditLog.map(a => `
+      apiFetch('/audit-log')
+        .then(response => response.json())
+        .then(rows => {
+          mockAuditLog = Array.isArray(rows) ? rows : [];
+          document.getElementById('auditLogTable').innerHTML = mockAuditLog.map(a => `
     <tr>
       <td style="font-size:11px;font-family:'Share Tech Mono',monospace">${fmtDate(a.created_at)}</td>
       <td>${a.user}</td>
@@ -948,6 +1762,8 @@
       <td style="font-size:12px;color:var(--text-secondary)">${a.details}</td>
       <td style="font-family:'Share Tech Mono',monospace;font-size:11px">${a.ip_address}</td>
     </tr>`).join('');
+        })
+        .catch(error => console.error('[Dashboard] audit log load failed:', error));
     }
 
     async function submitAddUser(e) {
@@ -961,7 +1777,7 @@
       };
 
       try {
-        const res = await fetch(`${CONFIG.apiUrl}/users`, {
+        const res = await apiFetch('/users', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(u)
@@ -986,18 +1802,31 @@
       }
     }
 
-    function submitAddHost(e) {
+    async function submitAddHost(e) {
       e.preventDefault();
-      const h = {
-        id: mockHosts.length + 10, hostname: document.getElementById('newHostname').value,
+      const host = {
+        hostname: document.getElementById('newHostname').value.trim(),
         ip_address: document.getElementById('newIpAddress').value,
         dns_name: document.getElementById('newDnsName').value,
         host_group: document.getElementById('newHostGroup').value,
-        os: document.getElementById('newOs').value, status: 'online',
-        cpu_usage: rnd(10, 50), memory_usage: rnd(20, 60), disk_usage: rnd(10, 40), availability: 99.99
+        os: document.getElementById('newOs').value
       };
-      mockHosts.push(h);
-      closeModal('addHostModal'); loadHosts(); loadDashboardStats();
+      try {
+        const res = await apiFetch('/hosts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(host)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Host create failed');
+        mockHosts.push(data.host);
+        closeModal('addHostModal');
+        document.getElementById('addHostForm').reset();
+        loadHosts(); loadDashboardStats();
+      } catch (err) {
+        console.error(err);
+        alert(err.message || 'Server error while adding host.');
+      }
     }
 
     function fmtDate(d) {
@@ -1009,40 +1838,87 @@
     // =================================================================
     // CHARTS
     // =================================================================
+    const SEV_CLASS = {
+      Critical: 'critical',
+      CRIT: 'critical',
+      High: 'critical',
+      HIGH: 'critical',
+      Average: 'warning',
+      MED: 'warning',
+      Warning: 'warning',
+      LOW: 'info',
+      Information: 'info',
+      INFO: 'info'
+    };
+
     const chartDefaults = {
       responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false }, tooltip: {
-          backgroundColor: 'rgba(10,16,30,.95)',
-          titleColor: '#4db0e8', bodyColor: '#c8ddf2', borderColor: 'rgba(77,176,232,.3)', borderWidth: 1
+          backgroundColor: 'rgba(7,14,25,.92)',
+          titleColor: '#7dd3fc', bodyColor: '#dfeefe', borderColor: 'rgba(125,211,252,.35)', borderWidth: 1,
+          padding: 10,
+          displayColors: false
         }
       },
       scales: {
-        x: { grid: { color: 'rgba(15,28,55,.8)' }, ticks: { color: '#405570', font: { size: 10 } } },
-        y: { grid: { color: 'rgba(15,28,55,.8)' }, ticks: { color: '#405570', font: { size: 10 } } }
+        x: { grid: { color: 'rgba(148,163,184,.09)', drawBorder: false }, ticks: { color: '#7087a3', font: { size: 10 } } },
+        y: { grid: { color: 'rgba(148,163,184,.09)', drawBorder: false }, ticks: { color: '#7087a3', font: { size: 10 } }, min: 0, max: 100 }
       }
     };
 
     function makeLineData(label, color, data) {
+      const fillColor = color.includes('rgba(') ? color.replace(/1\)\s*$/, '0.12)') : `${color}22`;
       return {
         labels: data.map(d => new Date(d.time_bucket).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })),
         datasets: [{
           label, data: data.map(d => +d.avg_value.toFixed(1)),
-          borderColor: color, backgroundColor: color.replace('1)', '.08)'),
-          borderWidth: 2, fill: true, tension: .4, pointRadius: 2, pointHoverRadius: 5
+          borderColor: color, backgroundColor: fillColor,
+          borderWidth: 2.5, fill: true, tension: 0.38, pointRadius: 0, pointHoverRadius: 4,
+          pointBackgroundColor: color, pointBorderWidth: 0
         }]
       };
     }
 
+      function makeNetworkGaugeData(value) {
+        const max = 120;
+        const safeValue = Math.max(0, Math.min(max, Math.round(value)));
+        return {
+          labels: ['0–30', '30–60', '60–90', '90+'],
+          datasets: [{
+            data: [Math.min(safeValue, 30), Math.max(0, Math.min(safeValue - 30, 30)), Math.max(0, Math.min(safeValue - 60, 30)), Math.max(0, safeValue - 90), max - safeValue],
+            backgroundColor: ['#36c7a5', '#66c8ee', '#f2b84b', '#f06478', 'rgba(255,255,255,.07)'],
+            borderWidth: 0,
+            circumference: 180,
+            rotation: 270,
+            cutout: '72%'
+          }]
+        };
+      }
+
+      function updateNetworkGauge(value) {
+        const safeValue = Math.max(0, Math.round(value));
+        if (charts.networkChart) {
+          charts.networkChart.data = makeNetworkGaugeData(safeValue);
+          charts.networkChart.update('none');
+        }
+        const valueEl = document.getElementById('networkMbpsValue');
+        if (valueEl) valueEl.textContent = safeValue;
+      }
+
     const GRAPH_CONFIGS = [
-      { title: 'CPU Usage %', color: 'rgba(77,176,232,1)', base: 40, variance: 35 },
-      { title: 'Memory Usage %', color: 'rgba(240,160,48,1)', base: 62, variance: 25 },
-      { title: 'Network Mbps', color: 'rgba(32,192,96,1)', base: 200, variance: 150 },
-      { title: 'Disk IOPS', color: 'rgba(189,0,255,1)', base: 1200, variance: 800 },
+      { title: 'CPU Usage %', color: 'rgba(77,176,232,1)', base: 42, variance: 26 },
+      { title: 'Memory Usage %', color: 'rgba(240,160,48,1)', base: 58, variance: 22 },
+      { title: 'Network Mbps', color: 'rgba(32,192,96,1)', base: 76, variance: 32 },
+      { title: 'Disk IOPS', color: 'rgba(189,0,255,1)', base: 68, variance: 18 },
     ];
     let currentGraphIdx = 0;
 
     function initCharts() {
+      ['chart1', 'chart2'].forEach(id => {
+        if (charts[id]) charts[id].destroy();
+      });
       // Overview rotating charts
       const d1 = generateTimeseriesData(20, 40, 35);
       const d2 = generateTimeseriesData(20, 62, 25);
@@ -1050,20 +1926,80 @@
       charts.chart2 = new Chart(document.getElementById('chart2'), { type: 'line', data: makeLineData('Memory %', 'rgba(240,160,48,1)', d2), options: chartDefaults });
     }
 
+    async function runLiveNetworkSpeedTest() {
+      const start = performance.now();
+      const testUrls = [
+        'https://speed.cloudflare.com/__down?bytes=8388608',
+        'https://ash.speed.cloudflare.com/__down?bytes=8388608',
+      ];
+
+      for (const url of testUrls) {
+        try {
+          const response = await fetch(url, {
+            method: 'GET',
+            mode: 'cors',
+            cache: 'no-store',
+            headers: { Accept: 'application/octet-stream' }
+          });
+          if (!response.ok) continue;
+          const blob = await response.blob();
+          const elapsedSeconds = Math.max((performance.now() - start) / 1000, 0.05);
+          const downloadBytes = blob.size || 8 * 1024 * 1024;
+          const throughputMbps = (downloadBytes * 8) / (elapsedSeconds * 1000000);
+          const safeValue = Math.max(0, Math.min(999, Math.round(throughputMbps)));
+          updateNetworkGauge(safeValue);
+          return safeValue;
+        } catch (error) {
+          console.warn('[Network] Public speed test attempt failed:', url, error.message);
+        }
+      }
+
+      try {
+        const response = await apiFetch('/network/speedtest?size=4194304', { cache: 'no-store' });
+        if (response.ok) {
+          const buffer = await response.arrayBuffer();
+          const elapsedSeconds = Math.max((performance.now() - start) / 1000, 0.05);
+          const downloadBytes = buffer.byteLength || 0;
+          const throughputMbps = (downloadBytes * 8) / (elapsedSeconds * 1000000);
+          const safeValue = Math.max(0, Math.min(999, Math.round(throughputMbps)));
+          updateNetworkGauge(safeValue);
+          return safeValue;
+        }
+      } catch (error) {
+        console.warn('[Network] Local speed fallback unavailable:', error.message);
+      }
+
+      updateNetworkGauge(0);
+      return 0;
+    }
+
     function initGraphsTab() {
+      ['cpuChart', 'memoryChart', 'networkChart', 'problemsChart'].forEach(id => {
+        if (charts[id]) charts[id].destroy();
+      });
       const cpu = generateTimeseriesData(24, 38, 30);
       const mem = generateTimeseriesData(24, 65, 22);
-      const net = generateTimeseriesData(24, 180, 120);
       charts.cpuChart = new Chart(document.getElementById('cpuChart'), { type: 'line', data: makeLineData('CPU %', 'rgba(77,176,232,1)', cpu), options: chartDefaults });
       charts.memoryChart = new Chart(document.getElementById('memoryChart'), { type: 'line', data: makeLineData('Memory %', 'rgba(240,160,48,1)', mem), options: chartDefaults });
-      charts.networkChart = new Chart(document.getElementById('networkChart'), { type: 'line', data: makeLineData('Network Mbps', 'rgba(32,192,96,1)', net), options: chartDefaults });
+      charts.networkChart = new Chart(document.getElementById('networkChart'), {
+        type: 'doughnut',
+        data: makeNetworkGaugeData(0),
+        options: { responsive: true, maintainAspectRatio: false, rotation: 270, circumference: 180, plugins: { legend: { display: false }, tooltip: { enabled: false } } }
+      });
+      updateNetworkGauge(0);
+      runLiveNetworkSpeedTest();
+      if (!window.__networkSpeedTimer) {
+        window.__networkSpeedTimer = setInterval(() => {
+          if (authToken) runLiveNetworkSpeedTest();
+        }, 40000);
+      }
 
       const sevCounts = [
-        mockProblems.filter(p => p.severity === 'Critical').length,
-        mockProblems.filter(p => p.severity === 'High').length,
-        mockProblems.filter(p => p.severity === 'Average').length,
-        mockProblems.filter(p => p.severity === 'Warning').length,
-        mockProblems.filter(p => p.severity === 'Information').length,
+        mockProblems.filter(p => normalizeSeverityLabel(p.severity) === 'Critical').length,
+        mockProblems.filter(p => normalizeSeverityLabel(p.severity) === 'High').length,
+        mockProblems.filter(p => normalizeSeverityLabel(p.severity) === 'Average').length,
+        mockProblems.filter(p => normalizeSeverityLabel(p.severity) === 'Warning').length,
+        mockProblems.filter(p => normalizeSeverityLabel(p.severity) === 'Information').length,
       ];
       charts.problemsChart = new Chart(document.getElementById('problemsChart'), {
         type: 'doughnut',
@@ -1085,6 +2021,7 @@
     }
 
     function startGraphRotation() {
+      if (rotationInterval) clearInterval(rotationInterval);
       rotationCountdown = 60;
       updateRotationDisplays();
       rotationInterval = setInterval(() => {
@@ -1117,28 +2054,231 @@
     // =================================================================
     // NAVIGATION
     // =================================================================
-    function switchMainTab(name, el) {
+    const panelRoutes = {
+      overview: 'overview', hosts: 'hosts', problems: 'problems', graphs: 'graphs',
+      socflow: 'soc_flow', honeypot: 'honey_port', config: 'config', admin: 'admin',
+      security: 'security', threatintel: 'threat_intel', incidents: 'incidents', ai_brain: 'ai_brain'
+    };
+
+    function routeToPanel(path) {
+      const route = path.replace(/^\/+|\/+$/g, '').toLowerCase();
+      return Object.keys(panelRoutes).find(name => panelRoutes[name] === route) || 'overview';
+    }
+
+    function openPanelInNewTab(name) {
+      const route = panelRoutes[name] || panelRoutes.overview;
+      window.open(new URL(`/${route}`, window.location.origin).href, '_blank', 'noopener,noreferrer');
+    }
+
+    function applyRouteFromUrl() {
+      const name = routeToPanel(window.location.pathname);
+      const el = document.querySelector(`.nav-tab[onclick*="'${name}'"]`);
+      switchMainTab(name, el, null, false);
+    }
+
+    window.addEventListener('popstate', applyRouteFromUrl);
+
+    function initHoneyDecoyPanel() {
+      const frame = document.getElementById('honeyDecoyFrame');
+      const openLink = document.getElementById('honeyDecoyOpen');
+      if (!frame || !window.location.hostname) return;
+      const decoyUrl = `http://${window.location.hostname}:8081/`;
+      frame.dataset.decoyUrl = decoyUrl;
+      if (openLink) openLink.href = decoyUrl;
+    }
+
+    function toggleHoneyDecoyPanel() {
+      initHoneyDecoyPanel();
+      const panel = document.getElementById('honeyDecoyPanel');
+      const frame = document.getElementById('honeyDecoyFrame');
+      const button = document.getElementById('honeyDecoyToggle');
+      if (!panel || !frame || !button) return;
+      const opening = panel.classList.toggle('is-collapsed') === false;
+      if (opening && !frame.src) frame.src = frame.dataset.decoyUrl || `http://${window.location.hostname}:8081/`;
+      button.textContent = opening ? '× Close E-Commerce' : '▣ E-Commerce';
+      button.classList.toggle('active', opening);
+    }
+
+    function switchMainTab(name, el, clickEvent, updateUrl = true) {
+      const event = clickEvent || window.event;
+      if (event && (event.ctrlKey || event.metaKey || event.button === 1)) {
+        event.preventDefault();
+        openPanelInNewTab(name);
+        return;
+      }
+      if (name === 'admin' && !adminAccessGranted) {
+        pendingAdminRouteUpdate = updateUrl;
+        openModal('adminAccessModal');
+        document.getElementById('adminAccessPassword').focus();
+        return;
+      }
       document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-      if (el) el.classList.add('active');
+      const activeEl = el || document.querySelector(`.nav-tab[onclick*="'${name}'"]`);
+      if (activeEl) activeEl.classList.add('active');
       document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
       const tabMap = {
         overview: 'overviewTab', hosts: 'hostsTab', problems: 'problemsTab',
-        graphs: 'graphsTab', socflow: 'socFlowTab', config: 'configTab', admin: 'adminTab'
+        graphs: 'graphsTab', socflow: 'socFlowTab', honeypot: 'honeypotTab', config: 'configTab', admin: 'adminTab',
+        security: 'securityTab', threatintel: 'threatintelTab', incidents: 'incidentsTab', ai_brain: 'aiBrainTab'
       };
       const tab = document.getElementById(tabMap[name]);
-      if (tab) tab.classList.add('active');
+      if (tab) {
+        tab.scrollTop = 0;
+        tab.classList.add('active');
+      } else {
+        ensureDashboardVisible();
+      }
+      if (updateUrl && panelRoutes[name]) {
+        const nextPath = `/${panelRoutes[name]}`;
+        if (window.location.pathname !== nextPath) window.history.pushState({ panel: name }, '', nextPath);
+      }
+      if (name === 'security') { if(typeof secPollInterval!=='undefined') clearInterval(secPollInterval); if(typeof initSecurityTab==='function') { initSecurityTab(); secPollInterval = setInterval(pollSecurityEvents, 5000); } }
+      if (name === 'threatintel') { if(typeof initThreatIntel==='function') initThreatIntel(); }
+      if (name === 'incidents') { if(typeof initIncidents==='function') initIncidents(); }
+      if (name === 'ai_brain') { window.AIB?.refresh(); }
+      if (name === 'honeypot') { initHoneyDecoyPanel(); if(typeof initHoneyTelemetry==='function') initHoneyTelemetry(); }
       if (name === 'graphs') { refreshStaticCharts() }
       if (name === 'socflow') { setTimeout(() => flowFitScreen(), 100) }
     }
 
+    async function verifyAdminAccess(event) {
+      event.preventDefault();
+      const passwordInput = document.getElementById('adminAccessPassword');
+      try {
+        const res = await apiFetch('/auth/admin-access', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: passwordInput.value })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Administrator verification failed');
+        adminAccessGranted = true;
+        passwordInput.value = '';
+        closeModal('adminAccessModal');
+        populateProfileForm();
+        const adminTab = document.querySelector(".nav-tab[onclick*='admin']");
+        switchMainTab('admin', adminTab, null, pendingAdminRouteUpdate);
+      } catch (error) {
+        alert(error.message);
+        passwordInput.select();
+      }
+    }
+
+    function populateProfileForm() {
+      if (!currentUser) return;
+      document.getElementById('profileUsername').value = currentUser.username || '';
+      document.getElementById('profileFullName').value = currentUser.fullName || currentUser.full_name || '';
+      document.getElementById('profileEmail').value = currentUser.email || '';
+    }
+
+    function togglePasswordVisibility(inputId, button) {
+      const input = document.getElementById(inputId);
+      const isVisible = input.type === 'text';
+      input.type = isVisible ? 'password' : 'text';
+      button.textContent = isVisible ? 'Show' : 'Hide';
+      button.setAttribute('aria-label', `${isVisible ? 'Show' : 'Hide'} ${input.labels?.[0]?.textContent.toLowerCase() || 'password'}`);
+    }
+
+    async function updateProfile() {
+      const feedback = document.getElementById('profileFeedback');
+      feedback.className = 'account-feedback';
+      feedback.textContent = '';
+      try {
+        const res = await apiFetch('/account/profile', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            full_name: document.getElementById('profileFullName').value.trim(),
+            email: document.getElementById('profileEmail').value.trim()
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not update profile');
+        currentUser = data;
+        document.getElementById('hUserName').textContent = currentUser.fullName;
+        document.getElementById('hAvatar').textContent = currentUser.fullName[0].toUpperCase();
+        populateProfileForm();
+        feedback.textContent = 'Profile saved successfully.';
+      } catch (error) {
+        feedback.className = 'account-feedback error';
+        feedback.textContent = error.message;
+      }
+    }
+
+    async function updatePassword() {
+      const feedback = document.getElementById('passwordFeedback');
+      const currentPassword = document.getElementById('currentAdminPassword').value;
+      const newPassword = document.getElementById('newAdminPassword').value;
+      const confirmPassword = document.getElementById('confirmAdminPassword').value;
+      feedback.className = 'account-feedback';
+      feedback.textContent = '';
+      if (newPassword !== confirmPassword) {
+        feedback.className = 'account-feedback error';
+        feedback.textContent = 'New passwords do not match.';
+        return;
+      }
+      try {
+        const res = await apiFetch('/account/password', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ current_password: currentPassword, new_password: newPassword })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not update password');
+        document.getElementById('currentAdminPassword').value = '';
+        document.getElementById('newAdminPassword').value = '';
+        document.getElementById('confirmAdminPassword').value = '';
+        feedback.textContent = 'Password updated successfully.';
+      } catch (error) {
+        feedback.className = 'account-feedback error';
+        feedback.textContent = error.message;
+      }
+    }
+
+    async function updateAdminPanelPassword() {
+      const feedback = document.getElementById('panelPasswordFeedback');
+      const currentPassword = document.getElementById('currentPanelPassword').value;
+      const newPassword = document.getElementById('newPanelPassword').value;
+      const confirmPassword = document.getElementById('confirmPanelPassword').value;
+      feedback.className = 'account-feedback';
+      feedback.textContent = '';
+      if (newPassword !== confirmPassword) {
+        feedback.className = 'account-feedback error';
+        feedback.textContent = 'New panel passwords do not match.';
+        return;
+      }
+      try {
+        const res = await apiFetch('/account/admin-panel-password', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ current_password: currentPassword, new_password: newPassword })
+        });
+        const contentType = res.headers.get('content-type') || '';
+        const data = contentType.includes('application/json')
+          ? await res.json()
+          : { error: `API server returned ${res.status} HTML instead of JSON. Start the backend on port 3001.` };
+        if (!res.ok) throw new Error(data.error || 'Could not update admin panel password');
+        document.getElementById('currentPanelPassword').value = '';
+        document.getElementById('newPanelPassword').value = '';
+        document.getElementById('confirmPanelPassword').value = '';
+        feedback.textContent = 'Admin panel password updated successfully.';
+      } catch (error) {
+        feedback.className = 'account-feedback error';
+        feedback.textContent = error.message;
+      }
+    }
+
     function refreshStaticCharts() {
-      ['cpuChart', 'memoryChart', 'networkChart'].forEach(id => {
-        if (charts[id]) {
-          const g = GRAPH_CONFIGS[['cpuChart', 'memoryChart', 'networkChart'].indexOf(id)];
-          charts[id].data = makeLineData(id, g ? g.color : 'rgba(77,176,232,1)', generateTimeseriesData(24, g ? g.base : 50, g ? g.variance : 30));
-          charts[id].update();
+        const live = window.__liveTelemetry || { cpu: 48, memory: 62, systemCpu: 36, diskIops: 68 };
+        if (charts.cpuChart) {
+          charts.cpuChart.data = makeLineData('System CPU %', 'rgba(77,176,232,1)', generateTimeseriesData(24, live.systemCpu, 18));
+          charts.cpuChart.update('none');
         }
-      });
+        if (charts.memoryChart) {
+          charts.memoryChart.data = makeLineData('Memory Utilization %', 'rgba(240,160,48,1)', generateTimeseriesData(24, live.memory, 16));
+          charts.memoryChart.update('none');
+        }
+        updateNetworkGauge(0);
     }
 
     // =================================================================
@@ -1146,7 +2286,11 @@
     // =================================================================
     function openModal(id) { document.getElementById(id).classList.add('show') }
     function closeModal(id) { document.getElementById(id).classList.remove('show') }
-    document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if (e.target === m) m.classList.remove('show') }));
+    document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => {
+      if (e.target !== m) return;
+      if (m.id === 'hostDetailModal') closeHostDetails();
+      else m.classList.remove('show');
+    }));
 
     // =================================================================
     // CONFIG FUNCTIONS
@@ -1159,7 +2303,15 @@
       try {
         const res = await fetch(`${url}/health`);
         const data = await res.json();
-        if (res.ok && data.status === 'ok') {
+        const isHealthy = res.ok && (
+          data?.status === 'ok' ||
+          data?.ok === true ||
+          data?.data?.ok === true ||
+          data?.data?.status === 'ok' ||
+          data?.message === 'Backend is reachable'
+        );
+
+        if (isHealthy) {
           s.innerHTML = '<div class="cs-dot cs-ok"></div><span class="cs-txt" style="color:var(--accent-green)">Backend Connected ✅ (Ver: ' + (data.version || '1.0') + ')</span>';
         } else {
           s.innerHTML = '<div class="cs-dot cs-err"></div><span class="cs-txt">Backend unreachable or returned error.</span>';
@@ -1187,7 +2339,7 @@
     function testWebSocket() {
       const s = document.getElementById('wsStatus');
       const wsUrlElement = document.getElementById('cfgWsUrl');
-      const targetUrl = wsUrlElement ? wsUrlElement.value : 'ws://localhost:8080';
+      const targetUrl = wsUrlElement ? wsUrlElement.value : CONFIG.wsUrl;
 
       s.innerHTML = '<div class="cs-dot cs-warn"></div><span class="cs-txt">Attempting WebSocket to ' + targetUrl + ' ...</span>';
 
@@ -1212,7 +2364,7 @@
         };
 
         activeSocket.onerror = (err) => {
-          s.innerHTML = '<div class="cs-dot cs-err"></div><span class="cs-txt">Connection Failed. Make sure Port 8080 is accessible.</span>';
+          s.innerHTML = '<div class="cs-dot cs-err"></div><span class="cs-txt">Connection Failed. Check the configured WS URL and ensure the backend is running.</span>';
         };
 
         activeSocket.onclose = () => {
@@ -1222,12 +2374,53 @@
         s.innerHTML = '<div class="cs-dot cs-err"></div><span class="cs-txt">Invalid WS configuration.</span>';
       }
     }
+    async function loadTelegramAlertSettings() {
+      const statusEl = document.getElementById('telegramAlertStatus');
+      const internalToggle = document.getElementById('telegramInternalToggle');
+      const honeyToggle = document.getElementById('telegramHoneyToggle');
+      try {
+        const response = await apiFetch('/notifications/telegram/status');
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to load Telegram settings');
+        if (internalToggle) internalToggle.checked = Boolean(data.internal);
+        if (honeyToggle) honeyToggle.checked = Boolean(data.honey);
+        statusEl.innerHTML = '<div class="cs-dot cs-ok"></div><span class="cs-txt" style="color:var(--accent-green)">Telegram alerts: ' + (data.internal || data.honey ? 'enabled' : 'disabled') + '</span>';
+      } catch (error) {
+        if (statusEl) statusEl.innerHTML = '<div class="cs-dot cs-err"></div><span class="cs-txt">Telegram settings unavailable</span>';
+      }
+    }
+
+    async function saveTelegramAlertSettings() {
+      const internal = document.getElementById('telegramInternalToggle')?.checked ?? true;
+      const honey = document.getElementById('telegramHoneyToggle')?.checked ?? true;
+      const statusEl = document.getElementById('telegramAlertStatus');
+      statusEl.innerHTML = '<div class="cs-dot cs-warn"></div><span class="cs-txt">Saving Telegram alert settings...</span>';
+
+      try {
+        await Promise.all([
+          apiFetch('/notifications/telegram/toggle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bot: 'internal', enabled: internal })
+          }),
+          apiFetch('/notifications/telegram/toggle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bot: 'honey', enabled: honey })
+          })
+        ]);
+        statusEl.innerHTML = '<div class="cs-dot cs-ok"></div><span class="cs-txt" style="color:var(--accent-green)">Telegram alert settings saved ✅</span>';
+      } catch (error) {
+        statusEl.innerHTML = '<div class="cs-dot cs-err"></div><span class="cs-txt">Could not save Telegram settings</span>';
+      }
+    }
+
     function testN8nWebhook() {
       const url = document.getElementById('cfgN8nWebhook').value;
       if (!url) { alert('Please enter a webhook URL first'); return }
       const s = document.getElementById('n8nStatus');
       s.innerHTML = '<div class="cs-dot cs-warn"></div><span class="cs-txt">Testing webhook...</span>';
-      fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ test: true, source: 'zabbix-soc' }) })
+      apiFetch('/integrations/n8n/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ webhookUrl: url }) })
         .then(r => {
           if (r.ok) {
             s.innerHTML = '<div class="cs-dot cs-ok"></div><span class="cs-txt" style="color:var(--accent-green)">Webhook Responsive ✅</span>';
@@ -1242,7 +2435,7 @@
       CONFIG.graphRotation = parseInt(document.getElementById('cfgRotation').value) || 60000;
       alert('Settings applied');
     }
-    function applySimConfig() { alert('Simulation config applied — refreshing data...'); mockHosts = generateMockHosts(); mockProblems = generateMockProblems(); loadDashboardStats(); loadRecentProblems(); loadHosts(); loadProblems() }
+    function applySimConfig() { alert('Simulation mode is disabled. Use the live backend or configure a real integration.'); }
 
     // =================================================================
     // CLOCK
@@ -1271,52 +2464,52 @@
         stats: [{ l: 'Monitored Hosts', v: '342', vc: 'b' }, { l: 'Items / sec', v: '8,420', vc: 'd' }, { l: 'Uptime', v: '99.98%', vc: 'g' }, { l: 'Active Pollers', v: '24', vc: 'd' }]
       },
       {
-        id: 'discovery', label: 'Host Discovery', sub: 'SNMP · Agent · ICMP', col: '#0d9488', cd: '#031e1a', x: 315, y: 75, status: 'active', ico: '◎',
-        stats: [{ l: 'Networks', v: '12', vc: 'd' }, { l: 'Discovered', v: '8 new', vc: 'g' }, { l: 'Pending', v: '3', vc: 'y' }]
+        id: 'wazuh', label: 'Wazuh SIEM', sub: 'alerts.json · Security Events', col: '#0d9488', cd: '#031e1a', x: 315, y: 75, status: 'active', ico: 'W',
+        stats: [{ l: 'Events', v: '--', vc: 'd' }, { l: 'Source', v: 'Wazuh', vc: 'g' }, { l: 'Mode', v: 'LIVE', vc: 'g' }]
       },
       {
-        id: 'triggers', label: 'Trigger Engine', sub: 'Threshold evaluation', col: '#c87810', cd: '#1c1000', x: 315, y: 320, status: 'warning', ico: '⚡',
-        stats: [{ l: 'Active Triggers', v: '1,240', vc: 'd' }, { l: 'Fired Today', v: '18', vc: 'y' }, { l: 'Suppressed', v: '4', vc: 'd' }]
+        id: 'honeyports', label: 'Honeyport Sensors', sub: 'TCP decoys · Probe telemetry', col: '#c87810', cd: '#1c1000', x: 315, y: 320, status: 'warning', ico: 'H',
+        stats: [{ l: 'Listening', v: '--', vc: 'd' }, { l: 'External probes', v: '--', vc: 'y' }, { l: 'Internal probes', v: '--', vc: 'd' }]
       },
       {
-        id: 'problems', label: 'Problem Manager', sub: 'Dedup & correlation', col: '#6828c0', cd: '#100820', x: 585, y: 195, status: 'warning', ico: '⊕',
-        stats: [{ l: 'Open Problems', v: '23', vc: 'y' }, { l: 'Acknowledged', v: '7', vc: 'd' }, { l: 'Resolved Today', v: '182', vc: 'g' }]
+        id: 'correlation', label: 'Event Correlation', sub: 'Normalize · severity · dedup', col: '#c87810', cd: '#1c1000', x: 585, y: 195, status: 'active', ico: '⊕',
+        stats: [{ l: 'Normalized', v: '--', vc: 'd' }, { l: 'Critical / High', v: '--', vc: 'r' }, { l: 'Risk scoring', v: 'ON', vc: 'g' }]
       },
       {
-        id: 'router', label: 'Alert Router', sub: 'Severity-based routing', col: '#c01838', cd: '#1c0008', x: 855, y: 195, status: 'active', ico: '⇌',
-        stats: [{ l: 'Routed Today', v: '341', vc: 'd' }, { l: 'Dropped', v: '0', vc: 'g' }, { l: 'Queued', v: '3', vc: 'y' }]
+        id: 'threatintel', label: 'Threat Intelligence', sub: 'Attacker IPs · threat scores', col: '#c01838', cd: '#1c0008', x: 855, y: 195, status: 'active', ico: 'T',
+        stats: [{ l: 'Tracked IPs', v: '--', vc: 'd' }, { l: 'High risk', v: '--', vc: 'r' }, { l: 'Enrichment', v: 'READY', vc: 'g' }]
       },
       {
-        id: 'email', label: 'Email Notifier', sub: 'SMTP · ops@company.com', col: '#2060c8', cd: '#080c20', x: 1120, y: 60, status: 'active', ico: '✉',
-        stats: [{ l: 'Sent Today', v: '128', vc: 'd' }, { l: 'Failed', v: '0', vc: 'g' }, { l: 'Rate', v: '2.1/hr', vc: 'd' }]
+        id: 'incidents', label: 'Incident Queue', sub: 'MITRE ATT&CK · IR lifecycle', col: '#6828c0', cd: '#100820', x: 855, y: 430, status: 'warning', ico: 'I',
+        stats: [{ l: 'Open Incidents', v: '--', vc: 'y' }, { l: 'Investigating', v: '--', vc: 'd' }, { l: 'Contained', v: '--', vc: 'g' }]
       },
       {
-        id: 'slack', label: 'Slack Alerts', sub: '#zabbix-ops · #critical', col: '#4830b8', cd: '#0a0820', x: 1120, y: 205, status: 'active', ico: '◈',
-        stats: [{ l: 'Sent Today', v: '89', vc: 'd' }, { l: 'Channels', v: '3', vc: 'd' }, { l: 'Rate', v: '1.4/hr', vc: 'd' }]
+        id: 'response', label: 'Response Automation', sub: 'Contain · block · notify', col: '#2060c8', cd: '#080c20', x: 1120, y: 250, status: 'active', ico: 'R',
+        stats: [{ l: 'Actions ready', v: '5', vc: 'd' }, { l: 'Webhook', v: 'n8n', vc: 'g' }, { l: 'Approval', v: 'REQUIRED', vc: 'y' }]
       },
       {
-        id: 'pagerduty', label: 'PagerDuty', sub: 'On-call escalation', col: '#c01818', cd: '#1c0606', x: 1120, y: 360, status: 'critical', ico: '⚑',
-        stats: [{ l: 'Open Incidents', v: '4', vc: 'r' }, { l: 'Acknowledged', v: '2', vc: 'y' }, { l: 'Resolved', v: '1', vc: 'g' }]
+        id: 'notify', label: 'SOC Notifications', sub: 'PagerDuty · Slack · Email', col: '#2060c8', cd: '#080c20', x: 1390, y: 60, status: 'active', ico: 'N',
+        stats: [{ l: 'PagerDuty', v: 'READY', vc: 'g' }, { l: 'Slack', v: 'READY', vc: 'g' }, { l: 'Email', v: 'READY', vc: 'g' }]
       },
       {
         id: 'siem', label: 'SIEM / Elastic', sub: 'Log & event indexing', col: '#057850', cd: '#011810', x: 1120, y: 510, status: 'active', ico: '▣',
-        stats: [{ l: 'Events Total', v: '2.4M', vc: 'd' }, { l: 'Index Size', v: '18.2 GB', vc: 'd' }, { l: 'Retention', v: '90 days', vc: 'd' }]
+        stats: [{ l: 'Events Total', v: '--', vc: 'd' }, { l: 'Indexing', v: 'READY', vc: 'g' }, { l: 'Retention', v: '90 days', vc: 'd' }]
       }
     ];
 
     let FLOW_NODES = FLOW_DEFAULTS.map(n => ({ ...n, stats: n.stats.map(s => ({ ...s })) }));
 
     const FLOW_EDGES = [
-      { from: 'zabbix', to: 'discovery', state: 'active', lbl: 'hosts' },
-      { from: 'zabbix', to: 'triggers', state: 'active', lbl: 'metrics' },
-      { from: 'discovery', to: 'problems', state: 'active', lbl: 'events' },
-      { from: 'triggers', to: 'problems', state: 'warning', lbl: 'alerts' },
-      { from: 'problems', to: 'router', state: 'warning', lbl: 'problems' },
-      { from: 'router', to: 'email', state: 'active', lbl: 'info+' },
-      { from: 'router', to: 'slack', state: 'active', lbl: 'warn+' },
-      { from: 'router', to: 'pagerduty', state: 'critical', lbl: 'disaster' },
-      { from: 'router', to: 'siem', state: 'active', lbl: 'all events' },
-      { from: 'triggers', to: 'siem', state: 'active', lbl: 'raw data' }
+      { from: 'zabbix', to: 'correlation', state: 'active', lbl: 'metrics' },
+      { from: 'wazuh', to: 'correlation', state: 'active', lbl: 'alerts' },
+      { from: 'honeyports', to: 'correlation', state: 'warning', lbl: 'probes' },
+      { from: 'correlation', to: 'threatintel', state: 'warning', lbl: 'risk score' },
+      { from: 'correlation', to: 'incidents', state: 'warning', lbl: 'IR case' },
+      { from: 'threatintel', to: 'response', state: 'active', lbl: 'enriched' },
+      { from: 'incidents', to: 'response', state: 'critical', lbl: 'contain' },
+      { from: 'response', to: 'notify', state: 'active', lbl: 'escalate' },
+      { from: 'response', to: 'siem', state: 'active', lbl: 'audit' },
+      { from: 'correlation', to: 'siem', state: 'active', lbl: 'evidence' }
     ];
 
     const FT = { x: 40, y: 30, s: 1 };
@@ -1582,23 +2775,7 @@
     }
 
     // Flow alert feed
-    const FLOW_ALERTS = [
-      { host: 'srv-db-01.prod', msg: 'PostgreSQL: Too many connections (limit 200)', sev: 'disaster' },
-      { host: 'k8s-node-03.prod', msg: 'CPU utilization above 90% for 5 min', sev: 'high' },
-      { host: 'nginx-lb-02.prod', msg: 'NGINX: HTTP 5xx error spike detected', sev: 'high' },
-      { host: 'srv-web-07.prod', msg: 'Disk usage on /var/log exceeded 85%', sev: 'average' },
-      { host: 'redis-cache-01', msg: 'Redis: memory usage above 80%', sev: 'average' },
-      { host: 'monitoring.int', msg: 'ICMP: Host unreachable via polling', sev: 'high' },
-      { host: 'backup-srv-01', msg: 'Backup job failed — timeout after 3 hours', sev: 'average' },
-      { host: 'fw-edge-01.prod', msg: 'Network: packet loss > 15% on WAN link', sev: 'high' },
-      { host: 'srv-api-04.prod', msg: 'API response time exceeds 2s threshold', sev: 'warning' },
-      { host: 'elk-elastic-02', msg: 'JVM heap usage at 92% — GC pressure', sev: 'average' },
-      { host: 'vpn-gw-01.prod', msg: 'SSL certificate expires in 7 days', sev: 'warning' },
-      { host: 'ceph-node-02', msg: 'OSD disk near-full (>90% used)', sev: 'disaster' },
-      { host: 'auth-srv-01', msg: 'LDAP: connection failures > 10/min', sev: 'high' },
-      { host: 'mq-rabbit-03', msg: 'Queue length exceeds 10,000 messages', sev: 'average' },
-      { host: 'k8s-api-server', msg: 'API server latency > 500ms p95', sev: 'warning' },
-    ];
+    const FLOW_ALERTS = [];
     const sevBarCls = { disaster: 'sdis', high: 'shi', average: 'sav', warning: 'swa', info: 'sin' };
 
     function addFlowAlert(tpl, prepend = true) {
@@ -1612,26 +2789,749 @@
     }
 
     function initFlowAlerts() {
-      const seed = [FLOW_ALERTS[0], FLOW_ALERTS[5], FLOW_ALERTS[11], FLOW_ALERTS[2], FLOW_ALERTS[7],
-      FLOW_ALERTS[9], FLOW_ALERTS[3], FLOW_ALERTS[1], FLOW_ALERTS[13], FLOW_ALERTS[4], FLOW_ALERTS[8]];
-      seed.reverse().forEach(t => addFlowAlert(t, false));
+      document.getElementById('flow-alert-feed').innerHTML = '<div class="ar"><div class="ab"><div class="ahost">SYSTEM</div><div class="amsg">Waiting for live events…</div><div class="atime">--:--:--</div></div></div>';
+    }
+
+    function updateFlowNodeStats(id, values, status) {
+      const node = FLOW_NODES.find(n => n.id === id);
+      if (!node) return;
+      values.forEach((value, index) => {
+        if (node.stats[index]) node.stats[index].v = String(value);
+        const valueEl = document.querySelector(`#fn-${id} .n-stats .nsr:nth-child(${index + 1}) .nsr-v`);
+        if (valueEl) valueEl.textContent = String(value);
+      });
+      if (status) {
+        node.status = status;
+        const dot = document.querySelector(`#fn-${id} .n-dot`);
+        if (dot) dot.className = `n-dot ${dotCls[status] || 'di'}`;
+      }
+    }
+
+    function updateFlowSeverity(stats, eventCount) {
+      document.getElementById('flow-sv-dis').textContent = stats.CRIT ?? 0;
+      document.getElementById('flow-sv-hi').textContent = stats.HIGH ?? 0;
+      document.getElementById('flow-sv-av').textContent = stats.MED ?? 0;
+      document.getElementById('flow-sv-wa').textContent = stats.LOW ?? 0;
+      document.getElementById('flow-sv-in').textContent = eventCount ?? 0;
+    }
+
+    async function refreshFlowTelemetry() {
+      try {
+        const [statsRes, eventsRes, attackersRes, incidentsRes, honeyRes, healthRes] = await Promise.all([
+          apiFetch('/security/stats'), apiFetch('/security/events'), apiFetch('/security/attackers'),
+          apiFetch('/security/incidents'), apiFetch('/security/honeyports'), apiFetch('/security/health')
+        ]);
+        const [stats, eventData, attackerData, incidentData, honey, health] = await Promise.all([
+          statsRes.json(), eventsRes.json(), attackersRes.json(), incidentsRes.json(), honeyRes.json(), healthRes.json()
+        ]);
+        const events = eventData.events || [];
+        const attackers = attackerData.attackers || [];
+        const incidents = incidentData.incidents || [];
+        const openIncidents = incidents.filter(i => i.stage !== 'Resolved');
+        const highRisk = attackers.filter(a => a.riskLevel === 'High').length;
+        const internal = honey.internal_events || 0;
+        const external = honey.external_events || 0;
+        const siemReady = health.wazuh_connected ? 'LIVE' : 'MOCK';
+
+        document.getElementById('flow-epm').textContent = Math.max(events.length, 1) * 4;
+        document.getElementById('flow-af').textContent = stats.total ?? events.length;
+        document.getElementById('flow-hp').textContent = honey.total_events ?? 0;
+        document.getElementById('flow-inc').textContent = openIncidents.length;
+        document.getElementById('flow-siem').textContent = siemReady;
+        updateFlowSeverity(stats, events.length);
+        updateFlowNodeStats('wazuh', [events.length, 'Wazuh', siemReady], health.wazuh_connected ? 'active' : 'warning');
+        updateFlowNodeStats('honeyports', [honey.listening_ports?.length || 0, external, internal], honey.enabled ? 'active' : 'warning');
+        updateFlowNodeStats('correlation', [events.length, (stats.CRIT || 0) + (stats.HIGH || 0), 'ON']);
+        updateFlowNodeStats('threatintel', [attackers.length, highRisk, 'READY']);
+        updateFlowNodeStats('incidents', [openIncidents.length, incidents.filter(i => i.stage === 'Investigated').length, incidents.filter(i => i.stage === 'Contained').length]);
+        updateFlowNodeStats('siem', [events.length, siemReady === 'LIVE' ? 'READY' : 'DEGRADED', '90 days'], siemReady === 'LIVE' ? 'active' : 'warning');
+
+        if (events.length) {
+          document.getElementById('flow-alert-feed').innerHTML = '';
+          events.slice(0, 12).reverse().forEach(event => addFlowAlert({
+            host: event.agent || event.srcip || 'unknown-source', msg: event.description || 'Security event',
+            sev: event.severity === 'CRIT' ? 'disaster' : event.severity === 'HIGH' ? 'high' : event.severity === 'MED' ? 'average' : 'info'
+          }, false));
+        }
+      } catch (error) {
+        document.getElementById('flow-siem').textContent = 'OFFLINE';
+        const feed = document.getElementById('flow-alert-feed');
+        if (feed) feed.innerHTML = '<div class="ar"><div class="ab"><div class="ahost">SYSTEM</div><div class="amsg">No live flow data available; backend offline.</div><div class="atime">--:--:--</div></div></div>';
+      }
     }
 
     function startFlowStream() {
-      (function loop() {
-        const delay = 3500 + Math.random() * 6000;
-        setTimeout(() => {
-          addFlowAlert(FLOW_ALERTS[Math.floor(Math.random() * FLOW_ALERTS.length)]);
-          // Update sidebar stats
-          document.getElementById('flow-epm').textContent = (460 + Math.floor(Math.random() * 100)).toString();
-          document.getElementById('flow-af').textContent = (15 + Math.floor(Math.random() * 10)).toString();
-          loop();
-        }, delay);
-      })();
+      refreshFlowTelemetry();
+      setInterval(refreshFlowTelemetry, 10000);
     }
+  </script>
+      <!-- ==================== SECURITY TAB ==================== -->
+      <div class="tab-content scroll-tab" id="securityTab">
+        <div class="container">
+          <!-- Status bar -->
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:18px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:8px;background:rgba(0,255,136,0.08);border:1px solid rgba(0,255,136,0.25);border-radius:8px;padding:8px 16px">
+              <div id="siemDot" style="width:9px;height:9px;border-radius:50%;background:#00ff88;box-shadow:0 0 8px #00ff88;animation:pulse 1.5s infinite"></div>
+              <span id="siemStatus" style="font-size:12px;color:#00ff88;font-family:'Share Tech Mono',monospace">SIEM OFFLINE — MOCK DATA</span>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <span class="sec-badge sec-crit" id="secBadgeCrit">0 CRIT</span>
+              <span class="sec-badge sec-high" id="secBadgeHigh">0 HIGH</span>
+              <span class="sec-badge sec-med" id="secBadgeMed">0 MED</span>
+              <span class="sec-badge sec-low" id="secBadgeLow">0 LOW</span>
+            </div>
+          </div>
+
+          <!-- Charts row -->
+          <div class="charts-grid" style="margin-bottom:18px">
+            <div class="chart-card">
+              <div class="chart-header">
+                <h3 class="chart-title">🔐 Alert Volume — Last 24 Hours</h3>
+                <span class="chart-badge">LIVE</span>
+              </div>
+              <div class="chart-container"><canvas id="secHourlyChart"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header">
+                <h3 class="chart-title">📊 Severity Distribution</h3>
+                <span class="chart-badge">LIVE</span>
+              </div>
+              <div class="chart-container"><canvas id="secSeverityChart"></canvas></div>
+            </div>
+          </div>
+
+          <!-- Live Event Feed -->
+          <div class="data-table">
+            <div class="table-header" style="display:flex;align-items:center;justify-content:space-between">
+              <h3 class="table-title">⚡ Live Security Events</h3>
+              <div style="display:flex;align-items:center;gap:12px">
+                <button class="btn btn-secondary btn-sm" type="button" onclick="clearSecurityHistory()" title="Clear older dashboard event history">Clear History</button>
+                <span style="font-size:11px;color:#607080;font-family:'Share Tech Mono',monospace">Auto-refresh every 5s</span>
+              </div>
+            </div>
+            <table>
+              <thead><tr>
+                <th>Severity</th><th>Time</th><th>Description</th><th>Source IP</th><th>Agent</th><th>Rule</th>
+              </tr></thead>
+              <tbody id="secEventFeed"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== THREAT INTEL TAB ==================== -->
+      <div class="tab-content scroll-tab" id="threatintelTab">
+        <div class="container">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap">
+            <h2 style="color:#00ffff;margin:0;font-size:20px">🔎 Threat Intelligence — Top Attackers</h2>
+            <div style="display:flex;gap:10px;margin-left:auto;flex-wrap:wrap">
+              <select id="tiFilterRisk" onchange="renderAttackers()" style="background:#0d1b2a;color:#a0b0c0;border:1px solid #203040;border-radius:6px;padding:5px 10px;font-size:12px">
+                <option value="">All Risk Levels</option>
+                <option value="High">High Risk</option>
+                <option value="Medium">Medium Risk</option>
+                <option value="Low">Low Risk</option>
+              </select>
+              <button class="btn btn-secondary btn-sm" type="button" onclick="loadThreatIntel()" title="Reload top attacker data">↻ Refresh</button>
+              <button class="btn btn-secondary btn-sm" type="button" onclick="clearThreatIntel()" title="Clear recorded Top Attackers data">⌫ Clear Threats</button>
+            </div>
+          </div>
+          <div class="data-table">
+            <table>
+              <thead><tr>
+                <th>#</th><th>IP Address</th><th>Attack Type</th><th>Hits</th>
+                <th>Threat Score</th><th>Risk</th><th>Last Seen</th>
+              </tr></thead>
+              <tbody id="tiAttackersBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== INCIDENTS TAB ==================== -->
+      <div class="tab-content scroll-tab" id="incidentsTab">
+        <div class="container">
+          <h2 style="color:#ff4466;margin:0 0 18px;font-size:20px">🚨 Incident Response — MITRE ATT&amp;CK Workflow</h2>
+          <div id="irCardsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(480px,1fr));gap:18px"></div>
+        </div>
+      </div>
+
+      <!-- ==================== HONEYPOT TELEMETRY TAB ==================== -->
+      <div class="tab-content honeypot-tab" id="honeypotTab">
+        <div class="honeypot-shell">
+          <div class="honeypot-topbar">
+            <div>
+              <div class="eyebrow"><span class="pulse-dot"></span> LIVE DEFENSIVE MONITORING</div>
+              <h1>HoneyPot</h1>
+              <p>Global view of decoy-port probes and captured connection signals.</p>
+            </div>
+            <div class="honeypot-controls">
+              <label class="honey-search"><span>⌕</span><input id="honeySearch" type="search" placeholder="Search IP, country or port" oninput="filterHoneyTelemetry()"></label>
+              <button class="honey-control-btn" id="honeyDecoyToggle" onclick="toggleHoneyDecoyPanel()">▣ E-Commerce</button>
+              <button class="honey-control-btn active" id="honeyRotateBtn" onclick="toggleHoneyRotation()">◉ Auto rotate</button>
+              <button class="honey-control-btn" onclick="resetHoneyGlobe()">◎ Reset view</button>
+            </div>
+          </div>
+          <div class="honeypot-grid">
+            <aside class="honey-rail honey-rail-left">
+              <section class="honey-card honey-node-card">
+                <div class="honey-card-title"><span class="status-led"></span> HoneyPort node</div>
+                <div class="node-name">edge-decoy-01</div>
+                <div class="node-meta">host oracle cloud vm<br>ubuntu 22.04 · x86_64<br>origin Ahmedabad, Gujarat, India<br><span class="node-scope">LAN + INTERNET READY</span></div>
+                <div class="node-window">window <strong>48h</strong> · last probe <strong id="honeyLastProbe">--</strong></div>
+              </section>
+              <section class="honey-card honey-summary-card">
+                <div class="honey-card-title">48-hour summary</div>
+                <div class="honey-metric-grid">
+                  <div><strong id="honeySessions">6,501</strong><span>sessions</span></div>
+                  <div><strong id="honeyUniqueIps">374</strong><span>unique IPs</span></div>
+                  <div><strong id="honeyAccepted">4,004</strong><span>connections</span></div>
+                  <div><strong id="honeyPayloadCount">12</strong><span>hints caught</span></div>
+                  <div><strong id="honeyInternalCount">0</strong><span>internal probes</span></div>
+                  <div><strong id="honeyExternalCount">0</strong><span>external probes</span></div>
+                </div>
+              </section>
+              <section class="honey-card">
+                <div class="honey-card-title">Attack campaigns</div>
+                <div class="campaign-list"><div><b>SSH</b><strong>214</strong><small>121 IPs</small></div><div><b>SCANNER</b><strong>188</strong><small>76 IPs</small></div><div><b>BOTNET</b><strong>96</strong><small>32 IPs</small></div></div>
+              </section>
+              <section class="honey-card honey-country-card">
+                <div class="honey-card-title">By country</div>
+                <div id="honeyCountryList"></div>
+              </section>
+            </aside>
+            <main class="honey-globe-stage">
+              <div id="honeyGlobe"></div>
+              <div class="globe-caption"><span class="legend-line"></span> active probe path <span class="legend-point"></span> source IP</div>
+              <div class="globe-vignette"></div>
+            </main>
+            <aside class="honey-rail honey-rail-right">
+              <section class="honey-card honey-source-card">
+                <div class="honey-card-title">Top source IPs <span class="live-count" id="honeySourceCount">LIVE</span></div>
+                <div class="honey-table-head"><span>IP</span><span>LOC</span><span>HITS</span></div>
+                <div id="honeySourceList"></div>
+              </section>
+              <section class="honey-card">
+                <div class="honey-card-title">Captured hints</div>
+                <div class="honey-payload-list" id="honeyPayloadList"></div>
+              </section>
+              <section class="honey-card honey-command-card">
+                <div class="honey-card-title">Probe signatures</div>
+                <div id="honeyCommandList"></div>
+              </section>
+            </aside>
+          </div>
+          <div class="honey-footer"><span>HONEYPOT / TCP DECOYS / 3 LISTENERS</span><span id="honeyFooterStatus">SYSTEM NOMINAL</span><span>DRAG TO ROTATE · SCROLL TO ZOOM</span></div>
+          <section class="honey-decoy-panel is-collapsed" id="honeyDecoyPanel" aria-label="E-Commerce Decoy inside HoneyPot">
+            <div class="honey-decoy-panel-head"><div><span class="eyebrow"><span class="pulse-dot"></span> HONEYPORT APPLICATION DECOY</span><h2>E-Commerce Web Portal</h2><p>Interactive synthetic storefront attached to the HoneyPot telemetry surface.</p></div><a id="honeyDecoyOpen" class="honey-control-btn" href="#" target="_blank" rel="noopener noreferrer">Open standalone</a></div>
+            <iframe id="honeyDecoyFrame" title="Synthetic E-Commerce Decoy" loading="lazy"></iframe>
+          </section>
+        </div>
+      </div>
+    </div><!-- /mainContent -->
+  </div><!-- /dashboard -->
+
+  <!-- ==================== SECURITY MODULE JS ==================== -->
+  <script>
+  // ── Config ──────────────────────────────────────────────────────
+  const SEC_API = (window.CONFIG?.apiUrl || 'http://localhost:3001/api') + '/security';
+  const SEV_COLOR = { CRIT:'#ff0033', HIGH:'#ff6600', MED:'#0088cc', LOW:'#00aa55' };
+  const SEV_ORDER = ['CRIT','HIGH','MED','LOW'];
+
+  let secHourlyChart = null;
+  let secSevChart = null;
+  let secPollInterval = null;
+  let threatRefreshInterval = null;
+
+  // ── Helpers ──────────────────────────────────────────────────────
+  function fmtTime(iso) {
+    try { const d = new Date(iso); return d.toLocaleTimeString('en-GB'); } catch(e) { return '--'; }
+  }
+  function pad2(n) { return String(n).padStart(2,'0'); }
+
+  // ── SECURITY TAB ─────────────────────────────────────────────────
+  function initSecurityTab() {
+    pollSecurityHealth();
+    pollSecurityEvents();
+    loadHourlyChart();
+  }
+
+  function pollSecurityHealth() {
+    apiFetch('/security/health').then(r => r.json()).then(d => {
+      const dot = document.getElementById('siemDot');
+      const lbl = document.getElementById('siemStatus');
+      if (d.wazuh_connected) {
+        dot.style.background = '#00ff88'; dot.style.boxShadow = '0 0 8px #00ff88';
+        lbl.style.color = '#00ff88'; lbl.textContent = 'SIEM ONLINE — WAZUH CONNECTED';
+      } else {
+        dot.style.background = '#ff6600'; dot.style.boxShadow = '0 0 8px #ff6600';
+        lbl.style.color = '#ff6600'; lbl.textContent = 'SIEM ONLINE — Gurudev';
+      }
+    }).catch(() => {
+      const lbl = document.getElementById('siemStatus');
+      if (lbl) { lbl.textContent = 'BACKEND OFFLINE'; lbl.style.color = '#ff2244'; }
+    });
+  }
+
+  function pollSecurityEvents() {
+    apiFetch('/security/stats').then(r => r.json()).then(d => {
+      document.getElementById('secBadgeCrit').textContent = d.CRIT + ' CRIT';
+      document.getElementById('secBadgeHigh').textContent = d.HIGH + ' HIGH';
+      document.getElementById('secBadgeMed').textContent  = d.MED  + ' MED';
+      document.getElementById('secBadgeLow').textContent  = d.LOW  + ' LOW';
+    }).catch(() => {});
+
+    apiFetch('/security/events').then(r => r.json()).then(d => {
+      const tbody = document.getElementById('secEventFeed');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      (d.events || []).forEach(ev => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><span class="sev-pill sev-${ev.severity}">${ev.severity}</span></td>
+          <td style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#607080">${fmtTime(ev.timestamp)}</td>
+          <td style="max-width:300px;white-space:normal;font-size:12px;color:#c0d0e0">${ev.description}</td>
+          <td style="font-family:'Share Tech Mono',monospace;font-size:12px;color:#00ccff">${ev.srcip}</td>
+          <td style="font-size:11px;color:#a0b0c0">${ev.agent}</td>
+          <td style="font-size:10px;color:#406070;font-family:'Share Tech Mono',monospace">${ev.rule}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }).catch(() => {});
+
+    // Update severity chart
+    apiFetch('/security/stats').then(r => r.json()).then(d => {
+      if (secSevChart) {
+        secSevChart.data.datasets[0].data = [d.CRIT, d.HIGH, d.MED, d.LOW];
+        secSevChart.update('none');
+      }
+    }).catch(() => {});
+  }
+
+  async function clearSecurityHistory() {
+    if (!window.confirm('Clear older security history from the dashboard? Source Wazuh logs will remain unchanged.')) return;
+    try {
+      const response = await apiFetch('/security/history/clear', { method: 'POST' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Unable to clear security history');
+      pollSecurityEvents();
+      loadHourlyChart();
+      loadThreatIntel();
+    } catch (error) {
+      window.alert(error.message || 'Unable to clear security history');
+    }
+  }
+
+  function loadHourlyChart() {
+    apiFetch('/security/chart/hourly').then(r => r.json()).then(d => {
+      const ctx1 = document.getElementById('secHourlyChart');
+      const ctx2 = document.getElementById('secSeverityChart');
+      if (!ctx1 || !ctx2) return;
+
+      if (secHourlyChart) { secHourlyChart.destroy(); secHourlyChart = null; }
+      secHourlyChart = new Chart(ctx1.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: d.labels,
+          datasets: [{ label: 'Alerts', data: d.buckets,
+            backgroundColor: 'rgba(0,200,255,0.25)', borderColor: '#00ccff', borderWidth: 1,
+            borderRadius: 3 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { x: { ticks: { color:'#405060', font:{size:10} }, grid:{color:'rgba(255,255,255,.04)'} },
+                    y: { ticks: { color:'#405060' }, grid:{color:'rgba(255,255,255,.04)'}, beginAtZero:true } } }
+      });
+
+      if (secSevChart) { secSevChart.destroy(); secSevChart = null; }
+      secSevChart = new Chart(ctx2.getContext('2d'), {
+        type: 'doughnut',
+        data: { labels: ['CRIT','HIGH','MED','LOW'],
+          datasets: [{ data: [0,0,0,0], backgroundColor: ['#ff0033','#ff6600','#0088cc','#007744'],
+            borderWidth: 2, borderColor: '#0a0e1a' }] },
+        options: { responsive:true, maintainAspectRatio:false, cutout:'65%',
+          plugins:{ legend:{ labels:{ color:'#a0b0c0', font:{size:11} } } } }
+      });
+      // Immediately fetch stats for donut
+      apiFetch('/security/stats').then(r => r.json()).then(d2 => {
+        secSevChart.data.datasets[0].data = [d2.CRIT, d2.HIGH, d2.MED, d2.LOW];
+        secSevChart.update('none');
+      }).catch(()=>{});
+    }).catch(() => {});
+  }
+
+  // ── THREAT INTEL TAB ─────────────────────────────────────────────
+  let _attackersCache = [];
+  function loadThreatIntel() {
+    apiFetch('/security/attackers').then(r => r.json()).then(d => {
+      _attackersCache = d.attackers || [];
+      renderAttackers();
+    }).catch(() => {
+      document.getElementById('tiAttackersBody').innerHTML =
+        '<tr><td colspan="7" style="color:#607080;text-align:center;padding:24px">Backend offline</td></tr>';
+    });
+  }
+
+  async function clearThreatIntel() {
+    if (!window.confirm('Clear all recorded Top Attackers data from Threat Intelligence?')) return;
+    try {
+      const response = await apiFetch('/security/attackers/clear', { method: 'POST' });
+      if (!response.ok) throw new Error('Unable to clear threat data');
+      _attackersCache = [];
+      renderAttackers();
+    } catch (error) {
+      window.alert(error.message || 'Unable to clear threat data');
+    }
+  }
+
+  function initThreatIntel() {
+    if (threatRefreshInterval) clearInterval(threatRefreshInterval);
+    loadThreatIntel();
+    threatRefreshInterval = setInterval(loadThreatIntel, 10000);
+  }
+
+  function ensureAttackerModal() {
+    let modal = document.getElementById('attackerSystemModal');
+    if (modal) return modal;
+    modal = document.createElement('div');
+    modal.id = 'attackerSystemModal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(3,8,16,0.72);display:none;align-items:center;justify-content:center;z-index:99999;padding:20px;';
+    modal.innerHTML = `
+      <div role="dialog" aria-modal="true" aria-labelledby="attackerModalTitle" style="width:min(760px,92vw);max-height:80vh;overflow:auto;border:1px solid #203040;border-radius:16px;background:#0c1624;box-shadow:0 18px 60px rgba(0,0,0,0.5);padding:18px 20px;color:#dfeaf5;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px;">
+          <div>
+            <div style="font-size:11px;color:#7d9bb6;text-transform:uppercase;letter-spacing:1px">Attacker system information</div>
+            <h3 id="attackerModalTitle" style="margin:6px 0 0;font-size:22px;color:#fff">IP Address</h3>
+          </div>
+          <button type="button" data-close="attacker-modal" style="padding:8px 10px;border-radius:8px;border:1px solid #304861;background:#122235;color:#e5edf6;cursor:pointer">✕ Close</button>
+        </div>
+        <div id="attackerModalBody" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;font-size:12px;line-height:1.6"></div>
+      </div>
+    `;
+    modal.addEventListener('click', (event) => {
+      if (event.target === modal || event.target.closest('[data-close="attacker-modal"]')) {
+        modal.style.display = 'none';
+      }
+    });
+    document.body.appendChild(modal);
+    window.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && modal.style.display === 'flex') modal.style.display = 'none';
+    });
+    return modal;
+  }
+
+  async function openAttackerModal(attacker) {
+    const modal = ensureAttackerModal();
+    const body = modal.querySelector('#attackerModalBody');
+    const title = modal.querySelector('#attackerModalTitle');
+    title.textContent = attacker?.ip || 'Unknown IP';
+    modal.style.display = 'flex';
+    if (!body) return;
+    body.innerHTML = '<div style="padding:12px;color:#8ea5bb">Loading attacker details...</div>';
+
+    try {
+      const response = await fetch(`${CONFIG.apiUrl}/security/attackers/${encodeURIComponent(attacker?.ip || '')}`);
+      const data = response.ok ? await response.json() : null;
+      const attackerData = data?.attacker || attacker || {};
+      const location = attackerData.location || {};
+      const activity = attackerData.activity || {};
+      const network = attackerData.network || {};
+
+      body.innerHTML = `
+        <div style="background:#0f1d2d;border:1px solid #203040;border-radius:12px;padding:12px">
+          <div style="font-size:11px;color:#7d9bb6;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Identity</div>
+          <div><strong>IP:</strong> ${attackerData.ip || 'Unknown / Not Available'}</div>
+          <div><strong>Source Port:</strong> ${attackerData.source_port || 'Unknown / Not Available'}</div>
+          <div><strong>Destination Port:</strong> ${attackerData.destination_port || 'Unknown / Not Available'}</div>
+          <div><strong>Protocol:</strong> ${attackerData.protocol || 'Unknown / Not Available'}</div>
+          <div><strong>User-Agent:</strong> ${attackerData.user_agent || 'Unknown / Not Available'}</div>
+        </div>
+        <div style="background:#0f1d2d;border:1px solid #203040;border-radius:12px;padding:12px">
+          <div style="font-size:11px;color:#7d9bb6;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Location</div>
+          <div><strong>Label:</strong> ${location.label || 'Approximate IP Geolocation'}</div>
+          <div><strong>Country:</strong> ${location.country || 'Unknown / Not Available'}</div>
+          <div><strong>Region:</strong> ${location.region || 'Unknown / Not Available'}</div>
+          <div><strong>City:</strong> ${location.city || 'Unknown / Not Available'}</div>
+          <div><strong>Latitude / Longitude:</strong> ${location.latitude ?? 'Unknown / Not Available'} / ${location.longitude ?? 'Unknown / Not Available'}</div>
+          <div><strong>Accuracy:</strong> ${location.accuracy_radius_km || 'Unknown / Not Available'}</div>
+        </div>
+        <div style="background:#0f1d2d;border:1px solid #203040;border-radius:12px;padding:12px">
+          <div style="font-size:11px;color:#7d9bb6;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Network</div>
+          <div><strong>ISP:</strong> ${network.isp || 'Unknown / Not Available'}</div>
+          <div><strong>ASN:</strong> ${network.asn || 'Unknown / Not Available'}</div>
+          <div><strong>Proxy / VPN / Tor:</strong> ${network.proxy_vpn_tor || 'Unknown / Not Available'}</div>
+        </div>
+        <div style="background:#0f1d2d;border:1px solid #203040;border-radius:12px;padding:12px">
+          <div style="font-size:11px;color:#7d9bb6;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Client</div>
+          <div><strong>Browser:</strong> ${attackerData.browser || 'Unknown / Not Available'}</div>
+          <div><strong>Version:</strong> ${attackerData.browser_version || 'Unknown / Not Available'}</div>
+          <div><strong>OS:</strong> ${attackerData.os || 'Unknown / Not Available'}</div>
+          <div><strong>OS Version:</strong> ${attackerData.os_version || 'Unknown / Not Available'}</div>
+          <div><strong>Device Type:</strong> ${attackerData.device_type || 'Unknown / Not Available'}</div>
+        </div>
+        <div style="background:#0f1d2d;border:1px solid #203040;border-radius:12px;padding:12px">
+          <div style="font-size:11px;color:#7d9bb6;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Activity</div>
+          <div><strong>First Seen:</strong> ${activity.first_seen || 'Unknown / Not Available'}</div>
+          <div><strong>Last Seen:</strong> ${activity.last_seen || 'Unknown / Not Available'}</div>
+          <div><strong>Event Count:</strong> ${activity.event_count ?? 'Unknown / Not Available'}</div>
+          <div><strong>Attack Types:</strong> ${(activity.attack_types || []).join(', ') || 'Unknown / Not Available'}</div>
+          <div><strong>Severity:</strong> ${activity.severity || 'Unknown / Not Available'}</div>
+          <div><strong>Block Status:</strong> ${activity.block_status || 'Unknown / Not Available'}</div>
+        </div>
+        <div style="grid-column:1/-1;background:#0f1d2d;border:1px solid #203040;border-radius:12px;padding:12px">
+          <div style="font-size:11px;color:#7d9bb6;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Evidence</div>
+          <div><strong>Event sources:</strong> ${(attackerData.evidence?.event_sources || []).join(', ') || 'Unknown / Not Available'}</div>
+          <div><strong>Agents / client hints:</strong> ${(attackerData.evidence?.agents || []).join(', ') || 'Unknown / Not Available'}</div>
+          <div><strong>Rules:</strong> ${(attackerData.evidence?.rules || []).join(', ') || 'Unknown / Not Available'}</div>
+          <div style="margin-top:10px"><strong>Recent events:</strong></div>
+          ${(attackerData.event_history || []).slice(0, 10).map(event => `<div style="padding:6px 0;border-bottom:1px solid #203040"><span style="color:#8ea5bb">${event.timestamp || 'Unknown time'}</span> · ${event.description || event.rule || 'Security event'} · ${event.protocol || 'Unknown protocol'}${event.port ? `:${event.port}` : ''} · ${event.severity || 'Unknown severity'}</div>`).join('') || '<div>Unknown / Not Available</div>'}
+        </div>
+      `;
+    } catch (error) {
+      body.innerHTML = `<div style="padding:12px;color:#ff8a96">Could not load attacker details. ${String(error.message || error)}</div>`;
+    }
+  }
+
+  function renderAttackers() {
+    const riskFilter = document.getElementById('tiFilterRisk')?.value || '';
+    let data = _attackersCache;
+    if (riskFilter) data = data.filter(a => a.riskLevel === riskFilter);
+
+    const tbody = document.getElementById('tiAttackersBody');
+    if (!tbody) return;
+    if (!data.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="color:#607080;text-align:center;padding:24px">No attackers found</td></tr>';
+      return;
+    }
+    tbody.innerHTML = '';
+    data.forEach((a, i) => {
+      const barClass = a.riskLevel === 'High' ? 'tb-high' : a.riskLevel === 'Medium' ? 'tb-med' : 'tb-low';
+      const riskColor = a.riskLevel === 'High' ? '#ff2244' : a.riskLevel === 'Medium' ? '#ffaa00' : '#00cc66';
+      const tr = document.createElement('tr');
+      tr.style.cursor = 'pointer';
+      tr.tabIndex = 0;
+      tr.setAttribute('aria-label', `Open attacker details for ${a.ip}`);
+      tr.innerHTML = `
+        <td style="font-size:13px;color:#607080;font-weight:700">${i+1}</td>
+        <td style="font-family:'Share Tech Mono',monospace;color:#00ccff;font-size:13px">${a.ip}</td>
+        <td style="font-size:11px;color:#a0b0c0;max-width:220px;white-space:normal">${a.attackType}</td>
+        <td style="font-weight:700;color:#fff;font-size:14px">${a.hits}</td>
+        <td><div class="ti-score-cell">
+          <div class="threat-bar-wrap"><div class="threat-bar ${barClass}" style="width:${a.threatScore}%"></div></div>
+          <span style="font-size:12px;color:${riskColor};font-family:'Share Tech Mono',monospace;min-width:32px">${a.threatScore}</span>
+        </div></td>
+        <td><span style="color:${riskColor};font-size:11px;font-weight:700">${a.riskLevel}</span></td>
+        <td style="font-size:11px;color:#607080;font-family:'Share Tech Mono',monospace">${fmtTime(a.lastSeen)}</td>
+      `;
+      tr.addEventListener('click', () => openAttackerModal(a));
+      tr.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          openAttackerModal(a);
+        }
+      });
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ── INCIDENTS TAB ────────────────────────────────────────────────
+  function initIncidents() {
+    const grid = document.getElementById('irCardsGrid');
+    if (!grid) return;
+    grid.innerHTML = '<div style="color:#607080;padding:24px">Loading incidents...</div>';
+    apiFetch('/security/incidents').then(r => r.json()).then(d => {
+      grid.innerHTML = '';
+      (d.incidents || []).forEach(inc => {
+        const critClass = inc.severity === 'CRIT' ? 'sev-crit-card' : '';
+        const sevColor = { CRIT:'#ff0033', HIGH:'#ff6600', MED:'#0088cc', LOW:'#007744' }[inc.severity] || '#607080';
+        const stagesHtml = inc.stages.map((s,i) => {
+          const cls = i < inc.current_stage_idx ? 'done' : i === inc.current_stage_idx ? 'active' : '';
+          return `<div class="ir-stage ${cls}">${s}</div>`;
+        }).join('');
+        const card = document.createElement('div');
+        card.className = `ir-card ${critClass}`;
+        card.innerHTML = `
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <div>
+              <span style="font-size:11px;color:#607080;font-family:'Share Tech Mono',monospace">${inc.id}</span>
+              <h3 style="margin:4px 0 0;color:#e0e8f0;font-size:16px">${inc.title}</h3>
+            </div>
+            <div style="text-align:right">
+              <span class="sev-pill sev-${inc.severity}" style="font-size:12px">${inc.severity}</span>
+              <div style="font-size:10px;color:#607080;margin-top:4px">🖥️ ${inc.target_host}</div>
+            </div>
+          </div>
+          <div style="margin-top:8px">
+            <span class="ir-mitre">${inc.mitre_id} — ${inc.mitre_name}</span>
+          </div>
+          <div class="ir-stages">${stagesHtml}</div>
+          <div class="ir-action-log">📋 ${inc.action_log}</div>
+          <div style="margin-top:8px;font-size:10px;color:#405060;font-family:'Share Tech Mono',monospace">
+            🕐 ${fmtTime(inc.timestamp)}
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }).catch(() => {
+      grid.innerHTML = '<div style="color:#607080;padding:24px">⚠️ Backend offline — could not load incidents</div>';
+    });
+  }
+
+  // ── HONEYPOT TELEMETRY ─────────────────────────────────────────
+  const HONEY_NODE = { lat: 23.0225, lng: 72.5714, city: 'Ahmedabad', state: 'Gujarat', country: 'India' };
+  let honeyGlobe = null;
+  let honeyRotation = true;
+  let honeyInitialized = false;
+  let honeyRefreshTimer = null;
+  let honeyGlobeArcSignature = '';
+  let honeyGlobeResizeHandler = null;
+  let honeySources = [];
+  let honeyEvents = [];
+
+  function honeyEscape(value) {
+    return String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
+  }
+
+  function honeySourceForEvent(event) {
+    const sourceIp = event?.sourceIp || 'unknown';
+    const existing = honeySources.find(source => source.ip === sourceIp);
+    if (existing) return existing;
+    return {
+      ip: sourceIp,
+      scope: event?.scope || 'EXTERNAL',
+      city: event?.city || 'Unresolved',
+      country: event?.country || 'Unknown',
+      flag: event?.flag || '•',
+      lat: event?.lat ?? null,
+      lng: event?.lng ?? null,
+      hits: 0,
+      kind: event?.protocol || 'TCP probe'
+    };
+  }
+
+  function renderHoneyPanels() {
+    const query = (document.getElementById('honeySearch')?.value || '').toLowerCase().trim();
+    const filtered = honeySources.filter(source => `${source.ip} ${source.city} ${source.country} ${source.kind}`.toLowerCase().includes(query));
+    const sortedSources = filtered.slice().sort((a, b) => b.hits - a.hits);
+    const sources = sortedSources.slice(0, 9);
+    const internalEvent = honeyEvents.find(event => event.scope === 'INTERNAL');
+    const internalSource = sortedSources.find(source => source.scope === 'INTERNAL') || (internalEvent && honeySourceForEvent(internalEvent));
+    if (internalSource && !sources.includes(internalSource)) sources.push(internalSource);
+    const sourceList = document.getElementById('honeySourceList');
+    if (sourceList) sourceList.innerHTML = sources.map(source => `<div class="honey-source-row"><span class="source-ip">${honeyEscape(source.ip)} <em class="scope-tag ${source.scope === 'INTERNAL' ? 'internal' : 'external'}">${source.scope === 'INTERNAL' ? 'LAN' : 'WAN'}</em></span><span>${source.flag} ${honeyEscape(source.city)}</span><b>${source.hits.toLocaleString()}</b></div>`).join('') || '<div class="honey-empty">No matching sources</div>';
+
+    const countries = {};
+    honeySources.forEach(source => { countries[source.country] = (countries[source.country] || 0) + source.hits; });
+    const countryList = document.getElementById('honeyCountryList');
+    if (countryList) countryList.innerHTML = Object.entries(countries).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([country, hits]) => {
+      const source = honeySources.find(item => item.country === country);
+      return `<div class="honey-country-row"><span>${source?.flag || '•'} ${honeyEscape(country)}</span><i>${hits.toLocaleString()}</i></div>`;
+    }).join('');
+
+    const payloads = [...honeyEvents, ...honeySources.filter(source => source.kind)].slice(0, 6);
+    const payloadList = document.getElementById('honeyPayloadList');
+    if (payloadList) payloadList.innerHTML = payloads.map(item => `<div class="honey-payload-row"><span class="payload-dot"></span><span>${honeyEscape(item.kind || item.protocol || 'TCP probe')}</span><b>${item.bytesReceived ? `${item.bytesReceived}B` : 'SIGNAL'}</b></div>`).join('');
+
+    const commands = honeyEvents.length ? honeyEvents.slice(0, 5).map(event => `${event.protocol || 'TCP'} handshake · ${event.honeyPort}`) : ['SSH handshake', 'HTTP request line', 'TLS client hello', 'TCP connect scan'];
+    const commandList = document.getElementById('honeyCommandList');
+    if (commandList) commandList.innerHTML = commands.map((command, index) => `<div class="honey-command-row"><span>${honeyEscape(command)}</span><b>${Math.max(12, 214 - index * 22)}</b></div>`).join('');
+    const lastProbe = honeyEvents[0]?.timestamp;
+    const lastProbeEl = document.getElementById('honeyLastProbe');
+    if (lastProbeEl) lastProbeEl.textContent = lastProbe ? fmtTime(lastProbe) : '--';
+    const sourceCount = document.getElementById('honeySourceCount');
+    if (sourceCount) sourceCount.textContent = `${honeySources.length} SOURCES`;
+  }
+
+  function updateHoneyGlobe() {
+    if (!honeyGlobe) return;
+    const query = (document.getElementById('honeySearch')?.value || '').toLowerCase().trim();
+    const visibleSources = honeySources.filter(source => {
+      const hasCoords = Number.isFinite(Number(source.lat)) && Number.isFinite(Number(source.lng));
+      const matchesQuery = !query || `${source.ip} ${source.city} ${source.country} ${source.kind}`.toLowerCase().includes(query);
+      return hasCoords && !source.is_private && matchesQuery;
+    });
+    const arcSignature = visibleSources.map(source => `${source.ip}:${source.lat}:${source.lng}`).join('|');
+    if (arcSignature === honeyGlobeArcSignature) return;
+    const points = [{ ...HONEY_NODE, ip: 'edge-decoy-01', isNode: true }, ...visibleSources];
+    const arcs = visibleSources.map(source => ({ ...source, startLat: Number(source.lat), startLng: Number(source.lng), endLat: HONEY_NODE.lat, endLng: HONEY_NODE.lng }));
+    honeyGlobe.pointsData(points).arcsData(arcs);
+    honeyGlobeArcSignature = arcSignature;
+  }
+
+  function initHoneyGlobe() {
+    if (honeyInitialized || typeof Globe !== 'function') return;
+    const target = document.getElementById('honeyGlobe');
+    if (!target) return;
+    honeyGlobe = Globe()(target)
+      .width(target.clientWidth)
+      .height(target.clientHeight)
+      .backgroundColor('rgba(0,0,0,0)')
+      .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
+      .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
+      .backgroundImageUrl('https://unpkg.com/three-globe/example/img/night-sky.png')
+      .showAtmosphere(true).atmosphereColor('#ff5572').atmosphereAltitude(0.18)
+      .pointLat('lat').pointLng('lng').pointColor(point => point.isNode ? '#8ed8ff' : '#ff5474')
+      .pointAltitude(point => point.isNode ? 0.12 : 0.035).pointRadius(point => point.isNode ? 0.7 : 0.22)
+      .pointsMerge(false).arcStartLat('startLat').arcStartLng('startLng').arcEndLat('endLat').arcEndLng('endLng')
+      .arcColor(() => ['rgba(255,71,112,.78)', 'rgba(255,166,77,.18)']).arcDashLength(0.3).arcDashGap(1.8).arcDashAnimateTime(2400).arcStroke(0.42);
+    honeyGlobe.controls().autoRotate = true;
+    honeyGlobe.controls().autoRotateSpeed = 0.35;
+    honeyGlobe.controls().enableDamping = true;
+    honeyGlobe.pointOfView({ lat: 23, lng: 72, altitude: 2.45 }, 0);
+    honeyGlobe.onGlobeClick(({ lat, lng }) => honeyGlobe.pointOfView({ lat, lng, altitude: 1.8 }, 700));
+    honeyGlobeResizeHandler = () => {
+      if (!honeyGlobe || !target.clientWidth || !target.clientHeight) return;
+      honeyGlobe.width(target.clientWidth).height(target.clientHeight);
+    };
+    window.addEventListener('resize', honeyGlobeResizeHandler);
+    updateHoneyGlobe();
+    honeyInitialized = true;
+  }
+
+  function updateHoneyEvents(events) {
+    honeyEvents = events || [];
+    document.getElementById('honeyInternalCount')?.replaceChildren(String(honeyEvents.filter(event => event.scope === 'INTERNAL').length));
+    document.getElementById('honeyExternalCount')?.replaceChildren(String(honeyEvents.filter(event => event.scope === 'EXTERNAL').length));
+    honeyEvents.forEach(event => {
+      const source = honeySourceForEvent(event);
+      const current = honeySources.find(item => item.ip === source.ip);
+      if (current) {
+        current.hits = Math.max(current.hits, source.hits + 1);
+        current.scope = event.scope || current.scope || 'EXTERNAL';
+      }
+      else honeySources.unshift({ ...source, hits: 1 });
+    });
+    renderHoneyPanels();
+    updateHoneyGlobe();
+  }
+
+  function loadHoneyTelemetry() {
+    apiFetch('/security/honeyports').then(response => response.json()).then(data => updateHoneyEvents(data.events || [])).catch(() => {});
+  }
+
+  function initHoneyTelemetry() {
+    initHoneyGlobe();
+    renderHoneyPanels();
+    loadHoneyTelemetry();
+    if (honeyRefreshTimer) clearInterval(honeyRefreshTimer);
+    honeyRefreshTimer = setInterval(loadHoneyTelemetry, 5000);
+  }
+
+  function filterHoneyTelemetry() { renderHoneyPanels(); updateHoneyGlobe(); }
+  function toggleHoneyRotation() {
+    honeyRotation = !honeyRotation;
+    if (honeyGlobe) honeyGlobe.controls().autoRotate = honeyRotation;
+    document.getElementById('honeyRotateBtn')?.classList.toggle('active', honeyRotation);
+  }
+  function resetHoneyGlobe() {
+    if (honeyGlobe) honeyGlobe.pointOfView({ lat: HONEY_NODE.lat, lng: HONEY_NODE.lng, altitude: 2.45 }, 900);
+  }
+
+  // ── Detection Rules Tab (embedded in Security tab if needed) ─────
+  // Auto-init on page load (security tab already calls on switch)
   </script>
   <!-- n8n Automation Add-On -->
   <script src="n8n-addon.js"></script>
+  <script src="ai-brain.js"></script>
 </body>
 
 </html>

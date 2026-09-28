@@ -1,0 +1,7 @@
+[
+  {"name":"Atlas Fabrication Co.","contact":"procurement@atlas-fab.example","category":"Field equipment","status":"Active"},
+  {"name":"Brightline Industrial","contact":"accounts@brightline-industrial.example","category":"Desk systems","status":"Active"},
+  {"name":"Waxwright Canvas Goods","contact":"orders@waxwright-canvas.example","category":"Carry goods","status":"Active"},
+  {"name":"Meridian Networks","contact":"sales@meridian-networks.example","category":"Tech","status":"Active"},
+  {"name":"Ironwell Toolworks","contact":"b2b@ironwell-tools.example","category":"Field equipment","status":"Under review"}
+]

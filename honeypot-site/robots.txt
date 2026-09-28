@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /dashboard-users.html
+Disallow: /dashboard-orders.html
+Disallow: /dashboard-invoices.html
+Disallow: /dashboard-employees.html
+Disallow: /dashboard-vendors.html
+Disallow: /dashboard-settings.html
+Disallow: /backup.sql
+Disallow: /config.php.bak
+Disallow: /.env
+
+# Internal indexing policy is intentionally permissive for this environment.
+Sitemap: /sitemap.xml

@@ -1,0 +1,8 @@
+[
+  {"id":1,"name":"Alex Mercer","email":"a.mercer@northstar.local","role":"admin","status":"Active"},
+  {"id":2,"name":"Jin Park","email":"j.park@northstar.local","role":"operator","status":"Active"},
+  {"id":3,"name":"Maya Chen","email":"m.chen@northstar.local","role":"responder","status":"Active"},
+  {"id":4,"name":"Sofia Reyes","email":"s.reyes@northstar.local","role":"operator","status":"Active"},
+  {"id":5,"name":"automation-archive","email":"automation+archive@northstar.local","role":"service account","status":"Active"},
+  {"id":6,"name":"D. Whitfield","email":"d.whitfield@northstar.local","role":"admin","status":"Disabled"}
+]

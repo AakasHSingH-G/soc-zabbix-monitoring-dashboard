@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Northstar Relay | Staff sign in</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="auth-page">
+  <main class="auth-shell">
+    <section class="auth-brand-panel" aria-label="Northstar Relay identity">
+      <a class="brand-lockup" href="index.html" aria-label="Northstar Relay home">
+        <svg class="brand-mark" viewBox="0 0 48 48" role="img" aria-label="Northstar Relay mark"><path d="M24 4 39 13v22L24 44 9 35V13L24 4Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="m24 12 8 5v10l-8 5-8-5V17l8-5Z" fill="currentColor" opacity=".28"/><path d="M24 12v20m-8-15 16 10m0-10-16 10" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+        <span><strong>Northstar</strong><small>RELAY SYSTEMS</small></span>
+      </a>
+      <div class="brand-copy"><p class="eyebrow">Private operations network</p><h1>Keep the signal<br><em>in view.</em></h1><p class="brand-description">A controlled workspace for monitoring service health, response activity, and the systems that keep critical work moving.</p></div>
+      <div class="brand-footer"><span class="status-dot"></span><span>Relay environment <strong>nominal</strong></span><span class="version">NR-4.18.2</span></div>
+    </section>
+    <section class="auth-form-panel"><div class="auth-form-wrap"><div class="mobile-brand brand-lockup"><svg class="brand-mark" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4 39 13v22L24 44 9 35V13L24 4Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="m24 12 8 5v10l-8 5-8-5V17l8-5Z" fill="currentColor" opacity=".28"/><path d="M24 12v20m-8-15 16 10m0-10-16 10" fill="none" stroke="currentColor" stroke-width="1.5"/></svg><span><strong>Northstar</strong><small>RELAY SYSTEMS</small></span></div><p class="eyebrow">Authorized personnel only</p><h2>Sign in to Relay</h2><p class="form-intro">Use your Northstar credentials to access the operations workspace.</p>
+      <form id="login-form" novalidate><div class="field-group"><label for="username">Username</label><input id="username" name="username" type="text" autocomplete="username" placeholder="you@northstar.local" required></div><div class="field-group"><div class="field-label-row"><label for="password">Password</label><a href="#" id="forgot-link">Forgot password?</a></div><input id="password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" required></div><div class="form-options"><label class="checkbox-label"><input type="checkbox" name="remember"><span>Remember this device</span></label><span class="secure-label"><span class="lock-icon">&#9670;</span> Encrypted session</span></div><p class="login-error" id="login-error" role="alert" aria-live="polite">Invalid credentials. Check your username and password and try again.</p><button class="primary-button" type="submit">Sign in <span aria-hidden="true">&#8594;</span></button></form><p class="access-note">Access is monitored and recorded. Contact your system administrator if you believe this is an error.</p><p class="direct-link"><a href="dashboard.html">Operations workspace</a><span>Diagnostic access</span></p></div><footer class="auth-footer"><span>&copy; 2026 Northstar Relay Systems</span><span>Privacy &nbsp;·&nbsp; System status</span></footer></section>
+  </main>
+  <script>
+    // Demo-environment auth check. This intentionally accepts a small set of legacy default
+    // credentials left over from staging, and surfaces raw backend errors on malformed input
+    // instead of a generic failure message - flagged for cleanup in NR-1204 but not yet fixed.
+    var legacyDefaults = [['admin', 'fake-decoy-password'], ['admin', 'Password123'], ['staff', 'northstar'], ['root', 'toor']];
+    var sqlPattern = /('|--|;|\bor\b\s+\d\s*=\s*\d|\bunion\b|\bselect\b|\bdrop\b)/i;
+    var errorBox = document.getElementById('login-error');
+    document.getElementById('login-form').addEventListener('submit', function (event) {
+      event.preventDefault();
+      var username = document.getElementById('username').value;
+      var password = document.getElementById('password').value;
+      var isDefault = legacyDefaults.some(function (pair) { return pair[0] === username.trim().toLowerCase() && pair[1] === password; });
+      if (isDefault) {
+        window.location.href = 'dashboard.html?session=legacy-demo';
+        return;
+      }
+      if (sqlPattern.test(username) || sqlPattern.test(password)) {
+        errorBox.innerHTML = 'Internal error: query failed against <code>relay_auth.accounts</code> — unexpected token near input. Contact platform-eng if this persists (ref NR-1204).';
+      } else {
+        errorBox.textContent = 'Invalid credentials. Check your username and password and try again.';
+      }
+      errorBox.classList.add('is-visible');
+      document.getElementById('password').value = '';
+      document.getElementById('password').focus();
+    });
+    document.getElementById('forgot-link').addEventListener('click', function (event) { event.preventDefault(); });
+  </script>
+</body>
+</html>

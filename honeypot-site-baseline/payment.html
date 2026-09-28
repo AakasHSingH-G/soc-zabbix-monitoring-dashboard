@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Northstar Supply Co. | Secure checkout</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="payment-page">
+  <header class="checkout-header"><a class="store-brand" href="index.html" aria-label="Northstar Supply Co. home"><svg class="brand-mark" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4 39 13v22L24 44 9 35V13L24 4Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="m24 12 8 5v10l-8 5-8-5V17l8-5Z" fill="currentColor" opacity=".28"/><path d="M24 12v20m-8-15 16 10m0-10-16 10" fill="none" stroke="currentColor" stroke-width="1.5"/></svg><span><strong>Northstar</strong><small>SUPPLY CO.</small></span></a><div class="checkout-progress"><span class="complete">01 Cart</span><i></i><span class="active">02 Payment</span><i></i><span>03 Confirm</span></div><a class="checkout-back" href="index.html">&#8592; Back to store</a></header>
+  <main class="payment-main">
+    <div class="payment-intro"><p class="eyebrow">Secure checkout</p><h1>Complete your order</h1><p>Choose a payment method for this simulated procurement order.</p></div>
+    <div class="payment-layout">
+      <section class="payment-methods"><div class="payment-card"><div class="payment-card-heading"><div><span class="step-number">01</span><h2>Scan to pay</h2></div><span class="secure-pill">&#9670; Secure relay</span></div><p class="payment-help">Scan the code with your approved mobile wallet. This preview does not process a real payment.</p><div class="qr-options"><button class="qr-option active" data-wallet="Northstar Pay" type="button"><span class="qr-frame"><svg viewBox="0 0 126 126" role="img" aria-label="Northstar Pay QR code"><rect width="126" height="126" fill="#fff"/><path fill="#102c3d" d="M7 7h35v35H7zM13 13v23h23V13zM20 20h9v9h-9zM84 7h35v35H84zM90 13v23h23V13zM97 20h9v9h-9zM7 84h35v35H7zM13 90v23h23V90zM20 97h9v9h-9zM49 7h7v7h-7zM63 7h7v14h-7zM49 21h14v7H49zM70 28h7v14h-7zM49 35h14v7H49zM84 49h7v7h-7zM98 49h21v7H98zM49 49h14v7H49zM70 49h7v21h-7zM7 49h7v14H7zM21 49h14v7H21zM28 63h14v7H28zM7 70h21v7H7zM35 70h7v7h-7zM49 63h14v7H49zM84 63h14v7H84zM105 63h14v7h-14zM49 77h7v14h-7zM63 77h21v7H63zM91 77h7v14h-7zM105 77h14v7h-14zM49 98h14v7H49zM70 91h7v21h-7zM84 98h14v7H84zM105 91h7v28h-7zM63 112h14v7H63z"/></svg></span><strong>Northstar Pay</strong><small>Order reference linked</small></button><button class="qr-option" data-wallet="Relay Wallet" type="button"><span class="qr-frame"><svg viewBox="0 0 126 126" role="img" aria-label="Relay Wallet QR code"><rect width="126" height="126" fill="#fff"/><path fill="#102c3d" d="M7 7h35v35H7zM13 13v23h23V13zM20 20h9v9h-9zM84 7h35v35H84zM90 13v23h23V13zM97 20h9v9h-9zM7 84h35v35H7zM13 90v23h23V90zM20 97h9v9h-9zM49 7h7v21h-7zM63 7h14v7H63zM49 35h21v7H49zM84 49h14v7H84zM105 49h14v14h-14zM49 49h7v14h-7zM63 49h14v7H63zM7 49h21v7H7zM35 49h7v21h-7zM7 70h14v7H7zM21 63h14v7H21zM49 70h14v7H49zM70 63h7v21h-7zM84 63h21v7H84zM112 70h7v14h-7zM49 91h14v7H49zM63 84h7v28h-7zM77 91h21v7H77zM105 91h14v7h-14zM49 105h7v14h-7zM77 105h14v14H77zM98 105h7v14h-7z"/></svg></span><strong>Relay Wallet</strong><small>Corporate account</small></button></div><div class="wallet-id"><span id="wallet-label">Northstar Pay address</span><strong id="wallet-address">northstar.pay / NS-4821-06</strong><button id="copy-wallet" type="button">Copy</button></div></div>
+      <div class="payment-card card-payment"><div class="payment-card-heading"><div><span class="step-number">02</span><h2>Card details</h2></div><span class="card-logos">VISA &nbsp; MC &nbsp; AMEX</span></div><form id="card-form" novalidate><label>Cardholder name<input type="text" placeholder="Alex Mercer" autocomplete="off"></label><label>Card number<input type="text" inputmode="numeric" placeholder="0000 0000 0000 0000" autocomplete="off"></label><div class="form-split"><label>Expiry<input type="text" placeholder="MM / YY" autocomplete="off"></label><label>Security code<input type="text" placeholder="CVC" autocomplete="off"></label></div><button class="pay-button" type="submit">Pay <span id="card-total">$0</span> <b>&#8594;</b></button><p class="payment-success" id="payment-success" role="status">Payment received for this simulated order. No transaction was submitted.</p></form></div></section>
+      <aside class="order-summary"><div class="summary-heading"><p class="eyebrow">Order summary</p><span id="summary-count">0 items</span></div><div id="summary-items" class="summary-items"><p>Your cart is empty. <a href="index.html">Return to the store</a></p></div><div class="promo-row"><input type="text" id="promo-code" placeholder="Promo code"><button id="promo-apply" type="button">Apply</button></div><p class="promo-status" id="promo-status"></p><div class="summary-lines"><div><span>Subtotal</span><strong id="summary-subtotal">$0</strong></div><div id="summary-discount-row" hidden><span>Discount</span><strong id="summary-discount">-$0</strong></div><div><span>Priority delivery</span><strong>Included</strong></div><div class="summary-total"><span>Total</span><strong id="summary-total">$0</strong></div></div><div class="summary-note"><span>&#10003;</span><p>Your order is reserved for 15 minutes while payment is completed.</p></div></aside>
+    </div>
+  </main>
+  <footer class="checkout-footer"><span>Northstar Relay Systems &nbsp;·&nbsp; Secure procurement</span><span>Need help? support@northstar.local</span></footer>
+  <script>
+    var cart = JSON.parse(localStorage.getItem('northstar-cart') || '[]');
+    var subtotal = cart.reduce(function (sum, item) { return sum + item.price * item.quantity; }, 0);
+    var discountPercent = 0;
+    document.getElementById('summary-count').textContent = cart.reduce(function (sum, item) { return sum + item.quantity; }, 0) + ' items';
+    document.getElementById('summary-items').innerHTML = cart.length ? cart.map(function (item) { return '<div class="summary-item"><span>' + item.name + ' <b>× ' + item.quantity + '</b></span><strong>$' + (item.price * item.quantity).toLocaleString('en-US') + '</strong></div>'; }).join('') : '<p>Your cart is empty. <a href="index.html">Return to the store</a></p>';
+    function renderTotals() {
+      var discountAmount = Math.round(subtotal * (discountPercent / 100));
+      var total = Math.max(0, subtotal - discountAmount);
+      document.getElementById('summary-subtotal').textContent = '$' + subtotal.toLocaleString('en-US');
+      var discountRow = document.getElementById('summary-discount-row');
+      discountRow.hidden = discountPercent === 0;
+      document.getElementById('summary-discount').textContent = '-$' + discountAmount.toLocaleString('en-US');
+      document.getElementById('summary-total').textContent = '$' + total.toLocaleString('en-US');
+      document.getElementById('card-total').textContent = '$' + total.toLocaleString('en-US');
+    }
+    renderTotals();
+    // Promo codes are parsed and applied entirely client-side against whatever subtotal is
+    // currently in the DOM - there is no allow-list of valid codes or server-side price check,
+    // so any string of the form CODE-<percent> is honored directly (e.g. STAFF-100, PARTNER-40).
+    // Flagged in NR-1240 alongside the product-page price override for the same cleanup pass.
+    document.getElementById('promo-apply').addEventListener('click', function () {
+      var raw = document.getElementById('promo-code').value.trim().toUpperCase();
+      var status = document.getElementById('promo-status');
+      var match = /-(\d{1,3})$/.exec(raw);
+      var percent = match ? parseInt(match[1], 10) : (raw === 'WELCOME10' ? 10 : NaN);
+      if (!isNaN(percent)) {
+        discountPercent = Math.max(0, percent);
+        renderTotals();
+        status.textContent = discountPercent >= 100 ? 'Code applied: order total waived.' : ('Code applied: ' + discountPercent + '% off this order.');
+        status.classList.add('is-visible');
+      } else {
+        status.textContent = 'Code not recognized.';
+        status.classList.add('is-visible');
+      }
+    });
+    var walletAddresses = { 'Northstar Pay': 'northstar.pay / NS-4821-06', 'Relay Wallet': 'relay.wallet / RW-0917-44' };
+    document.querySelectorAll('.qr-option').forEach(function (option) { option.addEventListener('click', function () { document.querySelectorAll('.qr-option').forEach(function (item) { item.classList.remove('active'); }); option.classList.add('active'); document.getElementById('wallet-label').textContent = option.dataset.wallet + ' address'; document.getElementById('wallet-address').textContent = walletAddresses[option.dataset.wallet]; }); });
+    document.getElementById('copy-wallet').addEventListener('click', function () { this.textContent = 'Copied'; var button = this; setTimeout(function () { button.textContent = 'Copy'; }, 1200); });
+    document.getElementById('card-form').addEventListener('submit', function (event) { event.preventDefault(); document.getElementById('payment-success').classList.add('is-visible'); });
+  </script>
+</body>
+</html>

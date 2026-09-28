@@ -1,0 +1,242 @@
+[
+  {
+    "id": 1,
+    "sku": "NR-1001",
+    "name": "Relay Field Kit",
+    "category": "field",
+    "price": 128,
+    "cost": 71,
+    "supplier": "Atlas Fabrication Co.",
+    "stock": 107
+  },
+  {
+    "id": 2,
+    "sku": "NR-1002",
+    "name": "Signal Desk Lamp",
+    "category": "desk",
+    "price": 86,
+    "cost": 33,
+    "supplier": "Brightline Industrial",
+    "stock": 114
+  },
+  {
+    "id": 3,
+    "sku": "NR-1003",
+    "name": "Relay Canvas Pack",
+    "category": "carry",
+    "price": 164,
+    "cost": 92,
+    "supplier": "Waxwright Canvas Goods",
+    "stock": 121
+  },
+  {
+    "id": 4,
+    "sku": "NR-1004",
+    "name": "Stationery Archive Set",
+    "category": "desk",
+    "price": 34,
+    "cost": 11,
+    "supplier": "Fieldnote Press",
+    "stock": 128
+  },
+  {
+    "id": 5,
+    "sku": "NR-1005",
+    "name": "Relay Utility Torch",
+    "category": "field",
+    "price": 52,
+    "cost": 19,
+    "supplier": "Atlas Fabrication Co.",
+    "stock": 135
+  },
+  {
+    "id": 6,
+    "sku": "NR-1006",
+    "name": "Northstar Cable Roll",
+    "category": "carry",
+    "price": 42,
+    "cost": 14,
+    "supplier": "Waxwright Canvas Goods",
+    "stock": 142
+  },
+  {
+    "id": 7,
+    "sku": "NR-1007",
+    "name": "Ridge Rain Shell",
+    "category": "field",
+    "price": 118,
+    "cost": 54,
+    "supplier": "Atlas Fabrication Co.",
+    "stock": 149
+  },
+  {
+    "id": 8,
+    "sku": "NR-1008",
+    "name": "Basecamp Multi-tool",
+    "category": "field",
+    "price": 46,
+    "cost": 17,
+    "supplier": "Ironwell Toolworks",
+    "stock": 156
+  },
+  {
+    "id": 9,
+    "sku": "NR-1009",
+    "name": "Trail Comm Radio",
+    "category": "field",
+    "price": 96,
+    "cost": 52,
+    "supplier": "Brightline Industrial",
+    "stock": 163
+  },
+  {
+    "id": 10,
+    "sku": "NR-1010",
+    "name": "Archive Monitor Arm",
+    "category": "desk",
+    "price": 74,
+    "cost": 29,
+    "supplier": "Brightline Industrial",
+    "stock": 170
+  },
+  {
+    "id": 11,
+    "sku": "NR-1011",
+    "name": "Relay Keyboard Tray",
+    "category": "desk",
+    "price": 58,
+    "cost": 21,
+    "supplier": "Brightline Industrial",
+    "stock": 177
+  },
+  {
+    "id": 12,
+    "sku": "NR-1012",
+    "name": "Northstar Desk Organizer",
+    "category": "desk",
+    "price": 28,
+    "cost": 9,
+    "supplier": "Fieldnote Press",
+    "stock": 184
+  },
+  {
+    "id": 13,
+    "sku": "NR-1013",
+    "name": "Transit Duffel 40L",
+    "category": "carry",
+    "price": 142,
+    "cost": 68,
+    "supplier": "Waxwright Canvas Goods",
+    "stock": 191
+  },
+  {
+    "id": 14,
+    "sku": "NR-1014",
+    "name": "Relay Laptop Sleeve",
+    "category": "carry",
+    "price": 38,
+    "cost": 14,
+    "supplier": "Waxwright Canvas Goods",
+    "stock": 198
+  },
+  {
+    "id": 15,
+    "sku": "NR-1015",
+    "name": "Waxwright Tool Roll",
+    "category": "carry",
+    "price": 54,
+    "cost": 22,
+    "supplier": "Waxwright Canvas Goods",
+    "stock": 205
+  },
+  {
+    "id": 16,
+    "sku": "NR-1016",
+    "name": "Relay Signal Router",
+    "category": "tech",
+    "price": 189,
+    "cost": 101,
+    "supplier": "Meridian Networks",
+    "stock": 212
+  },
+  {
+    "id": 17,
+    "sku": "NR-1017",
+    "name": "Field Tablet Dock",
+    "category": "tech",
+    "price": 96,
+    "cost": 44,
+    "supplier": "Meridian Networks",
+    "stock": 219
+  },
+  {
+    "id": 18,
+    "sku": "NR-1018",
+    "name": "Northstar Power Bank 20K",
+    "category": "tech",
+    "price": 62,
+    "cost": 27,
+    "supplier": "Meridian Networks",
+    "stock": 226
+  },
+  {
+    "id": 19,
+    "sku": "NR-1019",
+    "name": "Relay Mesh Node",
+    "category": "tech",
+    "price": 134,
+    "cost": 71,
+    "supplier": "Meridian Networks",
+    "stock": 233
+  },
+  {
+    "id": 20,
+    "sku": "NR-1020",
+    "name": "Expedition Tent Shell",
+    "category": "field",
+    "price": 246,
+    "cost": 138,
+    "supplier": "Atlas Fabrication Co.",
+    "stock": 240
+  },
+  {
+    "id": 21,
+    "sku": "NR-1021",
+    "name": "Signal Task Lamp Mini",
+    "category": "desk",
+    "price": 44,
+    "cost": 16,
+    "supplier": "Brightline Industrial",
+    "stock": 247
+  },
+  {
+    "id": 22,
+    "sku": "NR-1022",
+    "name": "Northstar Tote",
+    "category": "carry",
+    "price": 58,
+    "cost": 21,
+    "supplier": "Waxwright Canvas Goods",
+    "stock": 254
+  },
+  {
+    "id": 23,
+    "sku": "NR-1023",
+    "name": "Relay USB Hub",
+    "category": "tech",
+    "price": 32,
+    "cost": 11,
+    "supplier": "Meridian Networks",
+    "stock": 261
+  },
+  {
+    "id": 24,
+    "sku": "NR-1024",
+    "name": "Northstar First Aid Kit",
+    "category": "field",
+    "price": 38,
+    "cost": 15,
+    "supplier": "Ironwell Toolworks",
+    "stock": 268
+  }
+]

@@ -11,11 +11,11 @@
     simulationInterval: 5000, // 5 seconds
     stepDuration: 1200,      // Time between steps
     issueTypes: [
-      { id: 'cpu', name: 'CPU Spike Detected', icon: '⚡', fix: 'Process Optimization Applied' },
-      { id: 'server', name: 'Server Down (ICMP Fail)', icon: '🖥️', fix: 'Service Restart Initiated' },
-      { id: 'api', name: 'API Failure (5xx Spike)', icon: '🌐', fix: 'Traffic Rerouted / Cache Cleared' },
-      { id: 'disk', name: 'Disk Space Critical', icon: '💾', fix: 'Log Purge & Cleanup Task' },
-      { id: 'security', name: 'Brute Force Attempt', icon: '🛡️', fix: 'IP Blacklisted via Firewall' }
+      { id: 'ssh', name: 'SSH Brute Force', icon: '🔐', fix: 'Source IP blocked at firewall' },
+      { id: 'sqli', name: 'SQL Injection Pattern', icon: '🧪', fix: 'WAF rule applied and IP rate-limited' },
+      { id: 'malware', name: 'Known Malware Hash', icon: '☣', fix: 'Endpoint isolated for investigation' },
+      { id: 'honeyport', name: 'Honeyport Probe', icon: '◉', fix: 'Probe recorded and threat score raised' },
+      { id: 'ransomware', name: 'Ransomware Behaviour', icon: '⚠', fix: 'Host contained and recovery started' }
     ]
   };
 
@@ -76,6 +76,159 @@
       updateStats();
       addLog('Simulation statistics reset.', 'warning');
     });
+
+    injectIpBlockCard();
+  }
+
+  function injectIpBlockCard() {
+    if (document.getElementById('attackerIpConfig')) return;
+    const configGrid = document.querySelector('.config-grid');
+    if (!configGrid) return;
+
+    const card = document.createElement('section');
+    card.className = 'config-card ip-block-card';
+    card.id = 'attackerIpConfig';
+    card.innerHTML = `
+      <div class="config-card-title">Attacker IP Controls</div>
+      <div class="config-status" aria-live="polite">
+        <div class="cs-dot cs-warn" id="ipBlockStatusDot"></div>
+        <span class="cs-txt" id="ipBlockStatus">Loading attacker IPs...</span>
+      </div>
+      <form class="ip-block-form" id="ipBlockForm">
+        <div class="form-row">
+          <label for="manualBlockIp">IP address</label>
+          <input type="text" id="manualBlockIp" name="ip" placeholder="203.0.113.10" autocomplete="off" required>
+        </div>
+        <div class="form-row">
+          <label for="manualBlockReason">Reason</label>
+          <input type="text" id="manualBlockReason" name="reason" placeholder="Manual SOC block">
+        </div>
+        <div class="ip-form-actions">
+          <button type="submit" class="ip-form-action is-block">Block IP</button>
+          <button type="button" class="ip-form-action is-unblock" id="unblockManualIp">Unblock IP</button>
+          <button type="reset" class="ip-form-action is-clear">Clear</button>
+          <button type="button" class="ip-refresh-btn" id="refreshAttackerIps" title="Refresh attacker list" aria-label="Refresh attacker list">↻</button>
+        </div>
+      </form>
+      <div class="ip-block-table-wrap">
+        <table class="ip-block-table">
+          <thead><tr><th>IP address</th><th>Hits</th><th>Last seen</th><th>Attack</th><th>State</th><th>Action</th></tr></thead>
+          <tbody id="attackerIpRows"><tr><td colspan="6">Waiting for backend data</td></tr></tbody>
+        </table>
+      </div>
+    `;
+    configGrid.appendChild(card);
+
+    const statusText = card.querySelector('#ipBlockStatus');
+    const statusDot = card.querySelector('#ipBlockStatusDot');
+    const rows = card.querySelector('#attackerIpRows');
+    const setStatus = (message, state = 'warn') => {
+      statusText.textContent = message;
+      statusDot.className = `cs-dot cs-${state}`;
+    };
+
+    async function loadAttackerIps() {
+      const apiUrl = window.CONFIG?.apiUrl;
+      if (!apiUrl) return setStatus('Backend configuration is unavailable.', 'err');
+      try {
+        const options = { credentials: 'include', headers: { Accept: 'application/json' }, cache: 'no-store' };
+        const [attackerResponse, blockResponse] = await Promise.all([
+          fetch(`${apiUrl}/security/attackers?all=true`, options),
+          fetch(`${apiUrl}/security/blocks`, options),
+        ]);
+        if (!attackerResponse.ok || !blockResponse.ok) {
+          const response = !attackerResponse.ok ? attackerResponse : blockResponse;
+          const detail = await response.json().catch(() => ({}));
+          throw new Error(detail.error || (response.status === 401 ? 'Sign in to manage IP blocks.' : 'Unable to load IP controls.'));
+        }
+
+        const attackerData = await attackerResponse.json();
+        const blockData = await blockResponse.json();
+        const attackers = attackerData.attackers || [];
+        const activeBlocks = new Map((blockData.active || []).map(block => [block.ip, block]));
+        const combined = new Map(attackers.map(attacker => [attacker.ip, attacker]));
+        activeBlocks.forEach((block, ip) => {
+          if (!combined.has(ip)) combined.set(ip, { ip, hits: 0, attackType: block.reason || 'Manual block' });
+        });
+        const sorted = [...combined.values()].sort((left, right) => Number(right.hits || 0) - Number(left.hits || 0));
+        rows.replaceChildren();
+
+        if (!sorted.length) {
+          const emptyRow = document.createElement('tr');
+          const emptyCell = document.createElement('td');
+          emptyCell.colSpan = 6;
+          emptyCell.textContent = 'No attacker IPs recorded.';
+          emptyRow.appendChild(emptyCell);
+          rows.appendChild(emptyRow);
+        }
+
+        sorted.forEach(attacker => {
+          const block = activeBlocks.get(attacker.ip);
+          const row = document.createElement('tr');
+          const values = [
+            attacker.ip,
+            String(attacker.hits || 0),
+            attacker.lastSeen ? new Date(attacker.lastSeen).toLocaleString() : '—',
+            attacker.attackType || 'Unknown',
+            block ? `Blocked (${block.mode || 'active'})` : 'Allowed',
+          ];
+          values.forEach(value => {
+            const cell = document.createElement('td');
+            cell.textContent = value;
+            row.appendChild(cell);
+          });
+          const actionCell = document.createElement('td');
+          const actionButton = document.createElement('button');
+          actionButton.type = 'button';
+          actionButton.className = block ? 'ip-action-btn is-unblock' : 'ip-action-btn';
+          actionButton.textContent = block ? 'Unblock' : 'Block';
+          actionButton.addEventListener('click', () => changeIpBlock(attacker.ip, block ? 'unblock' : 'block', block?.reason || 'Manual block'));
+          actionCell.appendChild(actionButton);
+          row.appendChild(actionCell);
+          rows.appendChild(row);
+        });
+        setStatus(`${sorted.length} attacker or blocked IP address(es)`, 'ok');
+      } catch (error) {
+        rows.replaceChildren();
+        setStatus(error.message, 'err');
+      }
+    }
+
+    async function changeIpBlock(ip, action, reason) {
+      try {
+        const response = await fetch(`${window.CONFIG.apiUrl}/security/blocks`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({ ip, action, reason }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.success) throw new Error(result.error || `Could not ${action} ${ip}.`);
+        setStatus(`${ip} ${action === 'block' ? 'blocked until manually unblocked.' : 'unblocked.'}`, 'ok');
+        await loadAttackerIps();
+      } catch (error) {
+        setStatus(error.message, 'err');
+      }
+    }
+
+    card.querySelector('#ipBlockForm').addEventListener('submit', event => {
+      event.preventDefault();
+      const ip = card.querySelector('#manualBlockIp').value.trim();
+      const reason = card.querySelector('#manualBlockReason').value.trim() || 'Manual block';
+      changeIpBlock(ip, 'block', reason);
+    });
+    card.querySelector('#unblockManualIp').addEventListener('click', () => {
+      const ip = card.querySelector('#manualBlockIp').value.trim();
+      const reason = card.querySelector('#manualBlockReason').value.trim() || 'Manual unblock';
+      if (!ip) return setStatus('Enter an IP address to unblock.', 'err');
+      changeIpBlock(ip, 'unblock', reason);
+    });
+    card.querySelector('#refreshAttackerIps').addEventListener('click', loadAttackerIps);
+    document.querySelector('button[onclick*="config"]')?.addEventListener('click', loadAttackerIps);
+    loadAttackerIps();
+    setInterval(() => {
+      if (document.getElementById('configTab')?.classList.contains('active')) loadAttackerIps();
+    }, 30000);
   }
 
   function injectTab() {
@@ -157,32 +310,62 @@
               <div class="n8n-node-status" id="status-detect">Waiting...</div>
             </div>
 
-            <!-- Node 2: Analysis -->
+            <!-- Node 2: Normalization -->
             <div class="n8n-node" data-type="function" id="node-analyze">
               <div class="pulse"></div>
               <div class="n8n-node-header">
                 <div class="n8n-node-icon">🧠</div>
-                <div class="n8n-node-title">Analysis</div>
+                <div class="n8n-node-title">Normalize</div>
               </div>
               <div class="n8n-node-status" id="status-analyze">Idle</div>
             </div>
 
-            <!-- Node 3: Fix -->
+            <!-- Node 3: Enrichment -->
             <div class="n8n-node" data-type="action" id="node-fix">
               <div class="pulse"></div>
               <div class="n8n-node-header">
                 <div class="n8n-node-icon">🛠️</div>
-                <div class="n8n-node-title">Fix</div>
+                <div class="n8n-node-title">Enrichment</div>
               </div>
               <div class="n8n-node-status" id="status-fix">Idle</div>
             </div>
 
-            <!-- Node 4: Resolution -->
+            <!-- Node 4: Triage -->
+            <div class="n8n-node" data-type="function" id="node-triage">
+              <div class="pulse"></div>
+              <div class="n8n-node-header">
+                <div class="n8n-node-icon">⚖</div>
+                <div class="n8n-node-title">Triage / IR</div>
+              </div>
+              <div class="n8n-node-status" id="status-triage">Idle</div>
+            </div>
+
+            <!-- Node 5: Containment -->
+            <div class="n8n-node" data-type="action" id="node-contain">
+              <div class="pulse"></div>
+              <div class="n8n-node-header">
+                <div class="n8n-node-icon">🛡</div>
+                <div class="n8n-node-title">Containment</div>
+              </div>
+              <div class="n8n-node-status" id="status-contain">Idle</div>
+            </div>
+
+            <!-- Node 6: Notification -->
+            <div class="n8n-node" data-type="action" id="node-notify">
+              <div class="pulse"></div>
+              <div class="n8n-node-header">
+                <div class="n8n-node-icon">📣</div>
+                <div class="n8n-node-title">Notify</div>
+              </div>
+              <div class="n8n-node-status" id="status-notify">Idle</div>
+            </div>
+
+            <!-- Node 7: Evidence -->
             <div class="n8n-node" data-type="output" id="node-resolve">
               <div class="pulse"></div>
               <div class="n8n-node-header">
                 <div class="n8n-node-icon">✅</div>
-                <div class="n8n-node-title">Resolution</div>
+                <div class="n8n-node-title">Evidence / Close</div>
               </div>
               <div class="n8n-node-status" id="status-resolve">Stable</div>
             </div>
@@ -247,37 +430,26 @@
     if (isExecuting) return;
     isExecuting = true;
 
-    // Pick a random issue
-    const issue = N8N_CONFIG.issueTypes[Math.floor(Math.random() * N8N_CONFIG.issueTypes.length)];
+    const issue = N8N_CONFIG.issueTypes[0] || { id: 'UNCONFIGURED', name: 'Not configured', fix: 'Configure n8n' };
     currentIssue = issue;
 
-    // Step 1: Detect
-    addLog(`Issue detected: ${issue.name}`, 'error');
-    updateNode('detect', issue.name, true);
-    setArrowActive(0, true);
-    
-    await wait(N8N_CONFIG.stepDuration);
-    updateNode('detect', 'Detected', false);
-    
-    // Step 2: Analyze
-    updateNode('analyze', 'Analyzing root cause...', true);
-    addLog(`Analyzing ${issue.id} incident...`, 'highlight');
-    setArrowActive(1, true);
-
-    await wait(N8N_CONFIG.stepDuration);
-    updateNode('analyze', 'Root cause found', false);
-
-    // Step 3: Fix
-    updateNode('fix', 'Applying fix...', true);
-    addLog(`Action: ${issue.fix}`, 'warning');
-    setArrowActive(2, true);
-
-    await wait(N8N_CONFIG.stepDuration);
-    updateNode('fix', 'Fix applied', false);
-
-    // Step 4: Resolve
-    updateNode('resolve', 'Resolved ✅', true);
-    addLog(`System stabilized. ${issue.id} cleared.`, 'success');
+    const steps = [
+      ['detect', issue.name, 'Security event received', 'error'],
+      ['analyze', 'Normalizing event...', 'Event normalized and severity mapped', 'highlight'],
+      ['fix', 'Enriching indicators...', `Threat score calculated for ${issue.id}`, 'highlight'],
+      ['triage', 'Creating IR case...', 'Incident stage set to Investigated', 'warning'],
+      ['contain', 'Applying containment...', `Action: ${issue.fix}`, 'warning'],
+      ['notify', 'Escalating...', 'SOC channels notified', 'highlight'],
+      ['resolve', 'Evidence recorded', `Incident ${issue.id} closed`, 'success']
+    ];
+    for (let i = 0; i < steps.length; i++) {
+      const [id, activeStatus, message, logType] = steps[i];
+      addLog(message, logType);
+      updateNode(id, activeStatus, true);
+      setArrowActive(i, true);
+      await wait(N8N_CONFIG.stepDuration);
+      updateNode(id, id === 'resolve' ? 'Resolved' : 'Complete', false);
+    }
     
     // Add to history
     addToHistory(issue);
@@ -312,6 +484,9 @@
     updateNode('detect', 'Waiting...');
     updateNode('analyze', 'Idle');
     updateNode('fix', 'Idle');
+    updateNode('triage', 'Idle');
+    updateNode('contain', 'Idle');
+    updateNode('notify', 'Idle');
     updateNode('resolve', 'Stable');
     document.querySelectorAll('.n8n-node').forEach(n => n.classList.remove('active'));
     document.querySelectorAll('.n8n-arrow').forEach(a => a.classList.remove('active'));
@@ -347,12 +522,7 @@
     const svg = document.getElementById('n8nConnectors');
     if (!svg) return;
 
-    const nodes = [
-      document.getElementById('node-detect'),
-      document.getElementById('node-analyze'),
-      document.getElementById('node-fix'),
-      document.getElementById('node-resolve')
-    ];
+    const nodes = Array.from(document.querySelectorAll('.n8n-node'));
 
     svg.innerHTML = ''; // Clear
 

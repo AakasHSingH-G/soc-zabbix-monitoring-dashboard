@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fieldroom Supply | Synthetic Decoy</title>
+  <link rel="stylesheet" href="/decoy.css">
+</head>
+<body class="decoy-app">
+  <header class="decoy-header">
+    <a class="decoy-logo" href="/">FIELDROOM <span>SUPPLY</span></a>
+    <nav aria-label="Decoy navigation"><a href="#products">Products</a><a href="#checkout">Checkout</a><a href="#admin">Staff</a></nav>
+    <button class="decoy-cart" id="cartButton" type="button">Cart <strong id="cartCount">0</strong></button>
+  </header>
+
+  <main>
+    <section class="decoy-hero"><p class="decoy-kicker">Synthetic procurement environment</p><h1>Tools for work in motion.</h1><p>Everything on this page is fictional and exists only to exercise the security telemetry pipeline.</p><a class="decoy-button" href="#products">Browse catalog</a></section>
+    <section class="decoy-section" id="products"><div class="decoy-section-head"><div><p class="decoy-kicker">Demo catalog</p><h2>Fieldroom collection</h2></div><span id="catalogState">Loading...</span></div><div class="decoy-products" id="productGrid"></div></section>
+    <section class="decoy-section decoy-split" id="checkout"><div><p class="decoy-kicker">Synthetic checkout</p><h2>Place a test order</h2><p>No payment provider, email service, or real inventory is connected.</p></div><form class="decoy-form" id="checkoutForm"><label>Total cents<input name="total_cents" type="number" min="0" max="1000000" value="12800"></label><button class="decoy-button" type="submit">Submit test checkout</button><output id="checkoutResult"></output></form></section>
+    <section class="decoy-section decoy-split" id="admin"><div><p class="decoy-kicker">Restricted workspace</p><h2>Staff sign-in</h2><p>Attempts are recorded as synthetic admin telemetry and always denied.</p></div><form class="decoy-form" id="loginForm"><label>Username<input name="username" autocomplete="off"></label><label>Password<input name="password" type="password" autocomplete="off"></label><button class="decoy-button" type="submit">Sign in</button><output id="loginResult"></output></form></section>
+  </main>
+  <script src="/decoy.js" defer></script>
+</body>
+</html>

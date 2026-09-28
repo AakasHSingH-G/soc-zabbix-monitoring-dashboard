@@ -6,12 +6,32 @@ Thumbs.db
 
 # Logs
 logs
+logs/
 *.log
 npm-debug.log*
 
 # Environment
 .env
 .env.local
+.env.*
+!.env.example
 
-# Allow specific database for the user
-!backend/database.sqlite
+# Local data and model artifacts
+*.db
+*.sqlite*
+*-wal
+*-shm
+backups/
+Local AI/
+Local AI */
+*.gguf
+llamafile*
+node_modules/
+.claude/settings.local.json
+backend/database.sqlite.bak-before-ai
+.server.lock
+payloads/logs cmd*
+Local AI*/*.gguf
+Local AI*/llamafile-*
+Local AI*/ai.pid
+Local AI*/ai.log

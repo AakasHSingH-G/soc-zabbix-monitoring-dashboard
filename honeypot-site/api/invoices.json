@@ -1,0 +1,10 @@
+[
+  {"id":"INV-30012","party":"field-ops-3@client-example.com","type":"Customer","amount":214,"status":"Paid"},
+  {"id":"INV-30013","party":"Atlas Fabrication Co.","type":"Supplier","amount":3120,"status":"Awaiting approval"},
+  {"id":"INV-30014","party":"ops-lead@client-example.com","type":"Customer","amount":388,"status":"Paid"},
+  {"id":"INV-30015","party":"Brightline Industrial","type":"Supplier","amount":1860,"status":"Awaiting approval"},
+  {"id":"INV-30016","party":"procurement@partner-example.com","type":"Customer","amount":240,"status":"Overdue"},
+  {"id":"INV-30017","party":"Waxwright Canvas Goods","type":"Supplier","amount":2410,"status":"Scheduled"},
+  {"id":"INV-30018","party":"Meridian Networks","type":"Supplier","amount":5400,"status":"Scheduled"},
+  {"id":"INV-30019","party":"a.reyes@partner-example.com","type":"Customer","amount":86,"status":"Paid"}
+]

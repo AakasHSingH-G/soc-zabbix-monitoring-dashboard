@@ -1,0 +1,9 @@
+[
+  {"id":"TCK-5501","customer":"field-ops-3@client-example.com","subject":"Order NR-88213 arrived with a damaged lamp base","priority":"Medium","status":"Open"},
+  {"id":"TCK-5502","customer":"ops-lead@client-example.com","subject":"Cannot reset staff portal password","priority":"High","status":"Open"},
+  {"id":"TCK-5503","customer":"j.doe@client-example.com","subject":"Question about bulk pricing on field kits","priority":"Low","status":"Open"},
+  {"id":"TCK-5504","customer":"procurement@partner-example.com","subject":"Invoice INV-30016 shows as overdue but was paid","priority":"High","status":"Open"},
+  {"id":"TCK-5505","customer":"a.reyes@partner-example.com","subject":"Wallet address changed mid-checkout","priority":"Medium","status":"Closed"},
+  {"id":"TCK-5506","customer":"field-ops-3@client-example.com","subject":"Torch battery drained after two days","priority":"Low","status":"Closed"},
+  {"id":"TCK-5507","customer":"client-security@partner-example.com","subject":"Vulnerability report - please route to security team","priority":"High","status":"Open"}
+]

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Support Tickets | Northstar Relay</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="dashboard-page">
+  <header class="topbar">
+    <a class="brand-lockup" href="index.html" aria-label="Northstar Relay home"><svg class="brand-mark" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4 39 13v22L24 44 9 35V13L24 4Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="m24 12 8 5v10l-8 5-8-5V17l8-5Z" fill="currentColor" opacity=".28"/><path d="M24 12v20m-8-15 16 10m0-10-16 10" fill="none" stroke="currentColor" stroke-width="1.5"/></svg><span><strong>Northstar</strong><small>RELAY SYSTEMS</small></span></a>
+    <nav class="main-nav" aria-label="Primary navigation"><a href="dashboard.html">Overview</a><a href="dashboard-users.html">Users</a><a href="dashboard-orders.html">Orders</a><a href="dashboard-invoices.html">Invoices</a><a href="dashboard-employees.html">Employees</a><a href="dashboard-vendors.html">Vendors</a><a class="active" href="dashboard-tickets.html">Support</a><a href="dashboard-settings.html">Settings</a></nav>
+    <div class="topbar-tools"><span class="environment-tag"><i></i> Production</span><button class="user-chip" type="button" aria-label="User menu"><span class="avatar">AM</span><span class="user-name">A. Mercer</span><span class="chevron">&#8964;</span></button></div>
+  </header>
+  <main class="dashboard-content">
+    <div class="dashboard-heading"><div><p class="eyebrow">Customer support</p><h1>Ticket queue</h1><p class="heading-copy">Open and recently closed support requests.</p></div></div>
+    <div class="toolbar-row"><input type="search" id="tix-search" placeholder="Search by ticket id or subject"><span id="tix-count" class="catalog-count">7 tickets</span></div>
+    <section class="data-table-panel">
+      <p class="record-note" id="record-note" hidden></p>
+      <table class="data-table">
+        <thead><tr><th>Ticket</th><th>Customer</th><th>Subject</th><th>Priority</th><th>Assigned</th><th>Status</th></tr></thead>
+        <tbody id="tix-rows"></tbody>
+      </table>
+    </section>
+  </main>
+  <footer class="dashboard-footer"><span>Northstar Relay Systems &nbsp;·&nbsp; Internal use only</span><span>Data source: /api/tickets.json</span></footer>
+  <script>
+    var tickets = [
+      { id: 'TCK-5501', customer: 'field-ops-3@client-example.com', subject: 'Order NR-88213 arrived with a damaged lamp base', priority: 'Medium', assigned: 'Lena Vogel', status: 'Open' },
+      { id: 'TCK-5502', customer: 'ops-lead@client-example.com', subject: 'Cannot reset staff portal password', priority: 'High', assigned: 'Maya Chen', status: 'Open' },
+      { id: 'TCK-5503', customer: 'j.doe@client-example.com', subject: 'Question about bulk pricing on field kits', priority: 'Low', assigned: 'Lena Vogel', status: 'Open' },
+      { id: 'TCK-5504', customer: 'procurement@partner-example.com', subject: 'Invoice INV-30016 shows as overdue but was paid', priority: 'High', assigned: 'Priya Nair', status: 'Open' },
+      { id: 'TCK-5505', customer: 'a.reyes@partner-example.com', subject: 'Wallet address changed mid-checkout', priority: 'Medium', assigned: 'Tom Ashcroft', status: 'Closed' },
+      { id: 'TCK-5506', customer: 'field-ops-3@client-example.com', subject: 'Torch battery drained after two days', priority: 'Low', assigned: 'Lena Vogel', status: 'Closed' },
+      { id: 'TCK-5507', customer: 'client-security@partner-example.com', subject: 'Vulnerability report - please route to security team', priority: 'High', assigned: 'Maya Chen', status: 'Open' }
+    ];
+    function param(name) { var match = new RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search); return match ? decodeURIComponent(match[1]) : null; }
+    function priorityPill(p) { return '<span class="role-pill' + (p === 'High' ? ' admin' : '') + '">' + p + '</span>'; }
+    function renderRows(list, highlightId) {
+      document.getElementById('tix-rows').innerHTML = list.map(function (t) {
+        return '<tr class="' + (t.id === highlightId ? 'is-selected' : '') + '"><td>' + t.id + '</td><td>' + t.customer + '</td><td>' + t.subject + '</td><td>' + priorityPill(t.priority) + '</td><td>' + t.assigned + '</td><td>' + t.status + '</td></tr>';
+      }).join('');
+      document.getElementById('tix-count').textContent = list.length + ' tickets';
+    }
+    var requestedId = param('ticket_id');
+    renderRows(tickets, requestedId);
+    if (requestedId) {
+      var note = document.getElementById('record-note');
+      note.hidden = false;
+      var match = tickets.filter(function (t) { return t.id === requestedId; });
+      note.textContent = match.length ? ('Direct link opened for ticket ' + requestedId + '.') : ('No ticket exists for id ' + requestedId + '. Showing full queue below.');
+    }
+    document.getElementById('tix-search').addEventListener('input', function (e) {
+      var q = e.target.value.toLowerCase();
+      renderRows(tickets.filter(function (x) { return (x.id + x.subject + x.customer).toLowerCase().indexOf(q) !== -1; }), requestedId);
+    });
+  </script>
+</body>
+</html>

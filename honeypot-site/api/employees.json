@@ -1,0 +1,12 @@
+[
+  {"id":1,"name":"Alex Mercer","email":"a.mercer@northstar.local","dept":"Platform Engineering","access":"admin"},
+  {"id":2,"name":"Jin Park","email":"j.park@northstar.local","dept":"Site Reliability","access":"operator"},
+  {"id":3,"name":"Maya Chen","email":"m.chen@northstar.local","dept":"Security","access":"responder"},
+  {"id":4,"name":"Sofia Reyes","email":"s.reyes@northstar.local","dept":"Fulfillment Ops","access":"operator"},
+  {"id":5,"name":"D. Whitfield","email":"d.whitfield@northstar.local","dept":"Platform Engineering","access":"admin (disabled)"},
+  {"id":6,"name":"Priya Nair","email":"p.nair@northstar.local","dept":"Finance","access":"read-only"},
+  {"id":7,"name":"Tom Ashcroft","email":"t.ashcroft@northstar.local","dept":"Procurement","access":"operator"},
+  {"id":8,"name":"Lena Vogel","email":"l.vogel@northstar.local","dept":"Customer Support","access":"read-only"},
+  {"id":9,"name":"Marcus Ito","email":"m.ito@northstar.local","dept":"Security","access":"responder"},
+  {"id":10,"name":"automation-archive","email":"automation+archive@northstar.local","dept":"Platform Engineering","access":"service account"}
+]

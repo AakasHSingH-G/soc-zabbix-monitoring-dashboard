@@ -1,0 +1,9 @@
+Northstar Relay - deployment notes
+===================================
+Environment: production
+Primary region: us-east-1
+Archive region: eu-west-2
+Release channel: stable
+Last maintenance: 2026-09-19
+
+This file is a harmless synthetic decoy for the internal web root.
