@@ -50,6 +50,33 @@ Commit hash: pending until Commit A. Tag: pending until Commit A.
 
 Commit A and baseline tag: pending in this run.
 
-## Steps 1-8
+## Step 1 - Existing Phase Audit
+
+Status: Audit complete; only verified gaps are carried forward. No new runtime code added in this step.
+
+The two named v5 plan documents are absent. This audit uses the master prompt and v5.1 addendum supplied in conversation; the exact v5 P2-P10 DoD and R1-R26 definitions cannot be verified without those files.
+
+| Phase / capability | Status | Existing surface | Remaining gap |
+|---|---|---|---|
+| P2 local AI foundation | Partial | Loopback URL validation, single-worker queue, role checks, settings and cancellation in `backend/ai/local-ai.js`; mounted only behind `LOCAL_AI_ENABLED` in `backend/server.js`. | No comprehensive AI route RBAC matrix or restart/circuit-breaker drills. |
+| P3b fallback / output | Partial | Telemetry-grounded fallback, reason codes, legacy history label, UI engine line and minimum-data text in `backend/ai/fallback.js` and `Frontend/ai-brain.js`. | No complete v2 output schema, recommendation template catalog, or progressive narrative. |
+| P4 feedback / metrics | Missing | No AI prediction/analysis feedback tables or quality panel found. | Correct/wrong/partial/FP workflow, >=30 metric threshold, baselines. |
+| P5 case memory | Missing | Existing attack DNA observations and baseline are in `backend/database.js`; they are not analyst case memory. | Similar-case retrieval, dedupe, per-IP caps, top-3 precedents. |
+| P5b deterministic predictor | Partial | Coarse five-way telemetry signature and signature-keyed actions in `backend/ai/fallback.js`. | Sanitized full feature vector, timeline, S1-S13, mindset scores, kill-chain mapping, priors, rich predictions, templates, campaign correlation. |
+| P5d/P5e/P9b accuracy loop | Missing | Existing SOC `stage_transition_counts` and attack twin are separate from AI predictions in `backend/server.js`. | Prediction/outcome logs, idempotent evaluator, no-activity outcome, baselines, backtest, calibration and capped learned transitions. |
+| P6 Ask the Brain | Missing | AI route only analyzes an IP; see `/analyze/attacker/:ip` in `backend/ai/local-ai.js`. | Fixed-intent chat/query workflows. |
+| P7 incident/Zabbix explainers | Partial | Incident storage/routes and Zabbix API client exist in `backend/database.js`, `backend/server.js`, `backend/zabbix-api.js`. | AI explanations, evidence-grounded actions and inline controls. |
+| P8 intelligence | Partial | `threat_intel` and state tables exist in `backend/database.js`. | Safe collection/allowlist, quarantine, trust scoring, stale-state handling and offline cache workflow. |
+| P9 lessons/reports | Partial | General SOC report export exists in `Frontend/final.html`; AI reports/learning settings exist but are not implemented in `backend/ai/local-ai.js`. | Pending-only lessons, tuning suggestions, AI reports, export/reset backup, approval lifecycle. |
+| P10 live triage/Telegram AI enrichment | Partial | Async on-demand jobs in `backend/ai/local-ai.js`; Telegram notification pipeline in `backend/server.js`. | Event-triggered AI triage/enrichment with unchanged alert timing and measured impact. |
+| P11 block suggest | Partial | `ai_block_mode` accepts `suggest`; existing manual `applyHoneyBlock` lives in `backend/server.js`. | AI advisory recommendation path and policy-gate coverage; do not change block behavior. |
+| P12 dry-run auto_temp | Missing | `ai_block_dryrun` setting exists, default true. | No AI dry-run decision/log path. |
+| P13 real auto_temp policy path | Missing | Existing `applyHoneyBlock` is the single block mechanism in `backend/server.js`. | Full inert-by-default 14-check gate and tests. Any implementation must not alter live block behavior. |
+| P14 narrative layer | Partial | Current analysis waits for one model result; fallback UI labels unavailable narrative in `Frontend/ai-brain.js`. | Progressive deterministic result followed by constrained narrative append. |
+| P15 | Skipped | Explicitly excluded by master prompt. | None. |
+
+Step 1 checks: full suite 49/49; frontend/backend syntax checks pass; `LOCAL_AI_ENABLED=false` SOC smoke passes on a fresh temporary DB (health OK, fake test login OK, AI route 404); live table counts unchanged and users=3. Commit/tag: pending.
+
+## Steps 2-8
 
 Status: Not started. Update this section after each completed step with files, checks, commit/tag, and open issues.
