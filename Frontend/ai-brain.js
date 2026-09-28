@@ -195,6 +195,7 @@
         <h3 id="aibMetricsHeading">Prediction accuracy</h3>
         <p class="aib-result-meta" id="aibMetricsStatus" aria-live="polite">Loading outcome metrics...</p>
         <ul class="aib-history-list" id="aibMetricsList"></ul>
+        <ul class="aib-history-list" id="aibPendingCasesList"></ul>
       </section>
       <div class="aib-brain-empty"><strong>Local model analysis</strong><p>Analysis runs on the configured loopback llamafile server; on this CPU it may take up to 10 minutes. If the model is unavailable, a clearly labelled rule-based fallback is returned.</p><span>AI output is advisory and requires analyst review.</span></div>
     `;
@@ -332,6 +333,14 @@
       const campaign = analysis.prediction.campaign;
       appendTextElement(container, 'p', 'aib-result-meta', `Campaign ${campaign.id} · ${campaign.siblings} sibling IPs · estimated additional participants: ${campaign.expected_new_ips}`);
     }
+    if (analysis.prediction?.similar_cases?.length) {
+      appendTextElement(container, 'h3', '', 'Approved similar cases');
+      const casesList = document.createElement('ul');
+      analysis.prediction.similar_cases.slice(0, 3).forEach(item => {
+        appendTextElement(casesList, 'li', '', `Similarity ${Math.round(item.score * 100)}% · ${item.verdict} · ${item.outcome} · influence cap ${item.influence_cap.toFixed(2)}`);
+      });
+      container.appendChild(casesList);
+    }
     if (analysis.recommendation_items?.length) {
       appendTextElement(container, 'h3', '', 'What to do now');
       const recommendationList = document.createElement('ul');
@@ -459,6 +468,29 @@
       appendTextElement(metricsList, 'li', '', feedback.meaningful_feedback >= 30
         ? `Analyst feedback accuracy ${Math.round(feedback.accuracy * 100)}% · ${feedback.meaningful_feedback} correct/wrong votes`
         : 'Analyst feedback accuracy: Not enough data yet');
+      const pendingList = document.getElementById('aibPendingCasesList');
+      pendingList?.replaceChildren();
+      if (pendingList && isAdmin()) {
+        const pendingResponse = await request('/ai/cases/pending');
+        const pendingPayload = await pendingResponse.json().catch(() => ({}));
+        if (!pendingResponse.ok) throw new Error(pendingPayload.error || 'Pending case review unavailable.');
+        (pendingPayload.items || []).forEach(item => {
+          const row = document.createElement('li');
+          appendTextElement(row, 'span', '', `Case ${item.id} · ${item.verdict} · ${item.outcome} · ${item.features.severity}`);
+          const approve = document.createElement('button');
+          approve.type = 'button';
+          approve.className = 'aib-button aib-secondary';
+          approve.textContent = 'Approve precedent';
+          approve.addEventListener('click', async () => {
+            approve.disabled = true;
+            const result = await request(`/ai/cases/${item.id}/approve`, { method: 'PUT' });
+            if (result.ok) await loadPredictionMetrics();
+            else approve.disabled = false;
+          });
+          row.appendChild(approve);
+          pendingList.appendChild(row);
+        });
+      }
     } catch (error) {
       metricsStatus.textContent = error.message || 'Prediction metrics unavailable.';
       metricsList.replaceChildren();

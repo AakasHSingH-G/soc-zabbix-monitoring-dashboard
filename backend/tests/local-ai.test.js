@@ -293,7 +293,20 @@ test('enabled Local AI queues attacker analysis through the local model and stor
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ verdict: 'partial' }),
     })).status, 403);
+    assert.equal((await fetch(`${apiUrl}/cases/pending`)).status, 403);
+    assert.equal((await fetch(`${apiUrl}/cases/1/approve`, { method: 'PUT' })).status, 403);
     apiRole = 'admin';
+    const pendingCasesResponse = await fetch(`${apiUrl}/cases/pending`);
+    const pendingCases = await pendingCasesResponse.json();
+    assert.equal(pendingCases.items.length, 1);
+    assert.deepEqual(Object.keys(pendingCases.items[0].features).sort(), [
+      'admin_bucket', 'decoy_bucket', 'login_bucket', 'ports', 'rate_bucket', 'severity', 'stages', 'ua_class',
+    ]);
+    const approvalResponse = await fetch(`${apiUrl}/cases/${pendingCases.items[0].id}/approve`, { method: 'PUT' });
+    assert.equal(approvalResponse.status, 200);
+    const similarCaseAnalysis = await runAnalysis();
+    assert.equal(similarCaseAnalysis.status, 'completed');
+    assert.equal(similarCaseAnalysis.result.analysis.prediction.similar_cases.length, 1);
     const predictorTables = await new Promise((resolve, reject) => db.all(
       "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('ai_ip_timeline', 'ai_attacker_profiles', 'ai_playbook_priors', 'ai_mitre_map', 'ai_predictions', 'ai_prediction_outcomes', 'ai_calibration', 'ai_transition_stats', 'ai_analysis_feedback') ORDER BY name",
       [],
@@ -301,7 +314,7 @@ test('enabled Local AI queues attacker analysis through the local model and stor
     ));
     assert.deepEqual(predictorTables, ['ai_analysis_feedback', 'ai_attacker_profiles', 'ai_calibration', 'ai_ip_timeline', 'ai_mitre_map', 'ai_playbook_priors', 'ai_prediction_outcomes', 'ai_predictions', 'ai_transition_stats']);
     const predictionCount = await new Promise((resolve, reject) => db.get('SELECT COUNT(*) AS total FROM ai_predictions', [], (error, row) => error ? reject(error) : resolve(row.total)));
-    assert.equal(predictionCount, 2);
+    assert.equal(predictionCount, 3);
     const timelineCount = await new Promise((resolve, reject) => db.get('SELECT COUNT(*) AS total FROM ai_ip_timeline WHERE ip = ?', ['203.0.113.7'], (error, row) => error ? reject(error) : resolve(row.total)));
     assert.equal(timelineCount, 1);
   } finally {

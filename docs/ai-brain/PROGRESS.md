@@ -137,6 +137,20 @@ Checks: focused feedback tests pass; full backend suite 58/58; syntax checks pas
 
 Commit/tag: pending Step 6.1 close-out.
 
-### Steps 6.2-8
+Commit/tag: `6de1b1c` / `ai-step6.1`.
+
+### Step 6.2 - Sanitized Case Memory
+
+Status: Implemented; new cases are pending until an admin approves them.
+
+Files: `backend/ai/case-memory.js`, `backend/ai/local-ai.js`, `backend/tests/case-memory.test.js`, `backend/tests/local-ai.test.js`, `Frontend/ai-brain.js`.
+
+Implemented: memory stores only allowlisted structured buckets and a source-IP hash; repeated source/event/feature/verdict cases dedupe. Similarity uses weighted overlap for stages, ports, rate, login, admin, decoy, and UA class, with minimum score 0.4 and top-three results. Per-source influence is capped at `min(log2(1+n), 5)` across returned precedents. Analysts' feedback creates pending cases; admin-only review/approval is audited. Unapproved cases never enter prediction context.
+
+Checks: full backend suite 59/59; syntax and whitespace checks pass; disabled-AI smoke returned health/login 200 and AI route 404; all 21 legacy live-table counts match baseline and users=3.
+
+Commit/tag: pending Step 6.2 close-out.
+
+### Steps 6.3-8
 
 Status: Not started. Implement one scoped sub-step at a time; update this log after each verified commit/tag.

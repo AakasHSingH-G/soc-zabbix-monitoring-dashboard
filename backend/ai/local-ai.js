@@ -8,6 +8,7 @@ const { completeChat } = require('./llm-client');
 const { extractJsonResponse } = require('./think-parser');
 const { ANALYSIS_SCHEMA, groundAnalysis, validateAnalysis } = require('./validator');
 const { createAttackerFallback } = require('./fallback');
+const { approveCase, findSimilarCases, initializeCaseMemory, readPendingCases, saveFeedbackCase } = require('./case-memory');
 const {
   applyLearnedWeights,
   calibratePrediction,
@@ -302,6 +303,7 @@ function createLocalAi({ db, config, requireAdmin, requireAnalyst, writeAuditLog
           const prediction = predictNextAttacks(ip, context.events, context.incidents, campaign, { priors, mitreMap });
           await persistTimeline(db, ip, context.events);
           await persistProfile(db, ip, prediction.features);
+          prediction.similar_cases = await findSimilarCases(db, prediction.features);
           let accuracyPrediction = prediction;
           try {
             const learningEnabled = currentSettings.ai_learning === 'true';
@@ -437,6 +439,11 @@ function createLocalAi({ db, config, requireAdmin, requireAnalyst, writeAuditLog
         verdict,
         note,
       });
+      try {
+        await saveFeedbackCase(db, analysisId, verdict);
+      } catch (error) {
+        console.warn('[Local AI] feedback case capture failed:', error.message);
+      }
       await writeAuditLog({
         actor: req.user?.username || 'analyst',
         actorIp: req.ip || 'unknown',
@@ -449,6 +456,28 @@ function createLocalAi({ db, config, requireAdmin, requireAnalyst, writeAuditLog
       if (error.code === 'SQLITE_CONSTRAINT') return res.status(409).json({ error: 'Feedback already submitted for this analysis by this user' });
       console.warn('[Local AI] analyst feedback save failed:', error.message);
       res.status(503).json({ error: 'Analyst feedback could not be saved' });
+    }
+  });
+
+  router.get('/cases/pending', requireAdmin, async (req, res) => {
+    try {
+      res.json({ items: await readPendingCases(db) });
+    } catch (error) {
+      console.warn('[Local AI] pending case read failed:', error.message);
+      res.status(503).json({ error: 'Pending cases are temporarily unavailable' });
+    }
+  });
+
+  router.put('/cases/:id/approve', requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id < 1) return res.status(400).json({ error: 'A valid case ID is required' });
+    try {
+      if (!await approveCase(db, id)) return res.status(404).json({ error: 'Pending case not found' });
+      await writeAuditLog({ actor: req.user?.username || 'admin', actorIp: req.ip || 'unknown', action: 'AI_CASE_APPROVED', entity: String(id), details: {} });
+      res.json({ success: true, id });
+    } catch (error) {
+      console.warn('[Local AI] case approval failed:', error.message);
+      res.status(503).json({ error: 'Case could not be approved' });
     }
   });
 
@@ -509,6 +538,7 @@ function createLocalAi({ db, config, requireAdmin, requireAnalyst, writeAuditLog
     await ensureFallbackReasonColumn(db);
     await initializePredictorTables(db);
     await initializeAccuracyTables(db);
+    await initializeCaseMemory(db);
     const timestamp = new Date().toISOString();
     for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
       await dbRun(
