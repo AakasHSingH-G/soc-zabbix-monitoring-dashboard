@@ -219,7 +219,7 @@ test('enabled Local AI queues attacker analysis through the local model and stor
 
     const enableResponse = await fetch(`${apiUrl}/settings`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ settings: { ai_active: true } }),
+      body: JSON.stringify({ settings: { ai_active: true, ai_chat: true } }),
     });
     assert.equal(enableResponse.status, 200);
 
@@ -258,6 +258,27 @@ test('enabled Local AI queues attacker analysis through the local model and stor
     const reanalysis = await runAnalysis();
     assert.equal(reanalysis.status, 'completed');
     assert.notEqual(reanalysis.result.analysis_id, job.result.analysis_id);
+    const askResponse = await fetch(`${apiUrl}/ask`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: 'show recent incidents' }),
+    });
+    assert.equal(askResponse.status, 200);
+    assert.equal((await askResponse.json()).intent, 'recent_incidents');
+    assert.equal((await fetch(`${apiUrl}/ask`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: 'x'.repeat(501) }),
+    })).status, 400);
+    apiRole = 'analyst';
+    assert.equal((await fetch(`${apiUrl}/ask`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: 'unsupported query' }),
+    })).status, 200);
+    apiRole = 'viewer';
+    assert.equal((await fetch(`${apiUrl}/ask`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: 'recent incidents' }),
+    })).status, 403);
+    apiRole = 'admin';
     const historyResponse = await fetch(`${apiUrl}/history`);
     const history = await historyResponse.json();
     assert.equal(history.items.length, 3);

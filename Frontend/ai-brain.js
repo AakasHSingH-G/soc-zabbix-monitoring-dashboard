@@ -1,7 +1,7 @@
 (function() {
   const SETTING_LABELS = {
     ai_analysis: 'Attacker and incident analysis',
-    ai_chat: 'Ask the Brain (planned)',
+    ai_chat: 'Ask the Brain (fixed intents)',
     ai_auto_analyze: 'Live triage for HIGH/CRIT incidents (planned)',
     ai_learning: 'Learn from observed outcomes',
     ai_reports: 'Nightly reports (planned)',
@@ -10,7 +10,7 @@
     ai_priority_pause: 'Pause background work during attack bursts (planned)',
   };
   const BOOLEAN_KEYS = Object.keys(SETTING_LABELS);
-  const IMPLEMENTED_FEATURES = new Set(['ai_analysis', 'ai_learning']);
+  const IMPLEMENTED_FEATURES = new Set(['ai_analysis', 'ai_chat', 'ai_learning']);
   const NUMBER_LABELS = {
     ai_timeout_sec: ['Timeout', 'seconds'],
     ai_max_tokens: ['Maximum tokens', 'tokens'],
@@ -182,6 +182,13 @@
           <input id="aibAttackerIp" type="text" inputmode="text" placeholder="203.0.113.10" autocomplete="off" required>
           <button type="submit" class="aib-button aib-primary" id="aibAnalyzeButton">Analyze attacker</button>
         </form>
+        <form class="aib-analysis-form" id="aibAskForm">
+          <label for="aibAskQuestion">Ask the Brain</label>
+          <textarea id="aibAskQuestion" maxlength="500" rows="2" placeholder="Top attackers in the last day?" required></textarea>
+          <button type="submit" class="aib-button aib-secondary" id="aibAskButton">Ask</button>
+        </form>
+        <div id="aibAskResult" class="aib-result-meta" aria-live="polite"></div>
+        <ul id="aibAskItems" class="aib-history-list"></ul>
         <div class="aib-thinking" id="aibThinking" aria-live="polite" hidden></div>
         <button type="button" class="aib-button aib-secondary" id="aibCancelAnalysis" hidden>Cancel analysis</button>
         <div class="aib-analysis-result" id="aibAnalysisResult" aria-live="polite"></div>
@@ -204,6 +211,10 @@
       event.preventDefault();
       analyzeAttacker(panel.querySelector('#aibAttackerIp').value.trim());
     });
+    panel.querySelector('#aibAskForm')?.addEventListener('submit', event => {
+      event.preventDefault();
+      askBrain(panel.querySelector('#aibAskQuestion').value.trim());
+    });
     panel.querySelector('#aibCancelAnalysis')?.addEventListener('click', cancelAnalysis);
   }
 
@@ -223,6 +234,8 @@
     }
     const analyzeButton = document.getElementById('aibAnalyzeButton');
     if (analyzeButton) analyzeButton.disabled = Boolean(activeJobId) || !['admin', 'analyst'].includes(document.getElementById('hUserRole')?.textContent.trim().toLowerCase()) || status?.active !== true || status?.settings?.ai_analysis !== 'true';
+    const askButton = document.getElementById('aibAskButton');
+    if (askButton) askButton.disabled = !['admin', 'analyst'].includes(document.getElementById('hUserRole')?.textContent.trim().toLowerCase()) || status?.active !== true || status?.settings?.ai_chat !== 'true';
   }
 
   function fillSettings(values) {
@@ -513,6 +526,27 @@
     } catch (error) {
       appendTextElement(result, 'p', 'aib-result-error', error.message);
       document.getElementById('aibAnalyzeButton').disabled = false;
+    }
+  }
+
+  async function askBrain(question) {
+    const result = document.getElementById('aibAskResult');
+    const list = document.getElementById('aibAskItems');
+    const button = document.getElementById('aibAskButton');
+    if (!question || question.length > 500 || !result || !list || !button) return;
+    button.disabled = true;
+    result.textContent = 'Querying fixed SOC data...';
+    list.replaceChildren();
+    try {
+      const response = await request('/ai/ask', { method: 'POST', body: JSON.stringify({ question }) });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Ask the Brain is unavailable.');
+      result.textContent = payload.answer || 'No answer available.';
+      (payload.items || []).slice(0, 50).forEach(item => appendTextElement(list, 'li', '', JSON.stringify(item).slice(0, 1000)));
+    } catch (error) {
+      result.textContent = error.message || 'Ask the Brain is unavailable.';
+    } finally {
+      updateRoleState();
     }
   }
 

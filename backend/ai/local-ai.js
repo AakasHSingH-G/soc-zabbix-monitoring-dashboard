@@ -8,6 +8,7 @@ const { completeChat } = require('./llm-client');
 const { extractJsonResponse } = require('./think-parser');
 const { ANALYSIS_SCHEMA, groundAnalysis, validateAnalysis } = require('./validator');
 const { createAttackerFallback } = require('./fallback');
+const { answerFixedIntent, MAX_QUESTION_LENGTH } = require('./ask-brain');
 const { approveCase, findSimilarCases, initializeCaseMemory, readPendingCases, saveFeedbackCase } = require('./case-memory');
 const {
   applyLearnedWeights,
@@ -134,7 +135,7 @@ function validateSettings(input) {
   return { updates };
 }
 
-function createLocalAi({ db, config, requireAdmin, requireAnalyst, writeAuditLog }) {
+function createLocalAi({ db, config, requireAdmin, requireAnalyst, writeAuditLog, zabbixApi = require('../zabbix-api') }) {
   const loopbackUrlAllowed = isLoopbackUrl(config.url);
 
   const router = express.Router();
@@ -223,6 +224,31 @@ function createLocalAi({ db, config, requireAdmin, requireAnalyst, writeAuditLog
     } catch (error) {
       console.warn('[Local AI] settings read failed:', error.message);
       res.status(503).json({ error: 'AI settings are temporarily unavailable' });
+    }
+  });
+
+  router.post('/ask', requireAnalyst, async (req, res) => {
+    const question = req.body?.question;
+    if (typeof question !== 'string' || question.length > MAX_QUESTION_LENGTH) {
+      return res.status(400).json({ error: 'Question must be 500 characters or fewer' });
+    }
+    try {
+      const settings = await readSettings();
+      if (settings.ai_active !== 'true' || settings.ai_chat !== 'true') {
+        return res.status(503).json({ error: 'Ask the Brain is deactivated' });
+      }
+      const answer = await answerFixedIntent(db, question, zabbixApi);
+      await writeAuditLog({
+        actor: req.user?.username || 'analyst',
+        actorIp: req.ip || 'unknown',
+        action: 'AI_FIXED_INTENT_QUERY',
+        entity: answer.intent || 'unsupported',
+        details: {},
+      });
+      res.json(answer);
+    } catch (error) {
+      console.warn('[Local AI] fixed-intent query failed:', error.message);
+      res.status(503).json({ error: 'Ask the Brain query is temporarily unavailable' });
     }
   });
 

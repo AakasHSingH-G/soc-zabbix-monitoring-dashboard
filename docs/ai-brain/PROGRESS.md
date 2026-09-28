@@ -151,6 +151,20 @@ Checks: full backend suite 59/59; syntax and whitespace checks pass; disabled-AI
 
 Commit/tag: pending Step 6.2 close-out.
 
-### Steps 6.3-8
+Commit/tag: `32e4c0c` / `ai-step6.2`.
+
+### Step 6.3 - Fixed-Intent Ask the Brain
+
+Status: Implemented; it uses deterministic keyword classification and fixed queries only.
+
+Files: `backend/ai/ask-brain.js`, `backend/ai/local-ai.js`, `backend/tests/ask-brain.test.js`, `backend/tests/local-ai.test.js`, `Frontend/ai-brain.js`.
+
+Implemented: supports top attackers, recent incidents, block history, alert volume, honeyport activity, Zabbix problems, and today's changes. Local intents use fixed parameterized SQL; Zabbix problems use the existing API wrapper. Questions are capped at 500 characters, unsupported input returns `unsupported question`, and no model-generated SQL or LLM request is used. Access requires analyst/admin and both AI/chat settings enabled.
+
+Checks: full backend suite 60/60; syntax and whitespace checks pass; disabled-AI smoke returned health/login 200 and AI route 404; all 21 legacy live-table counts match baseline and users=3.
+
+Commit/tag: pending Step 6.3 close-out.
+
+### Steps 6.4-8
 
 Status: Not started. Implement one scoped sub-step at a time; update this log after each verified commit/tag.
