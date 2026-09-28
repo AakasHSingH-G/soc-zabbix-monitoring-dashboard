@@ -225,4 +225,22 @@ Implemented: narrative sanitization strips IPs, commands, URLs, and percentage p
 
 Checks: full backend suite 66/66; targeted narrative regression passes; syntax checks pass; disabled-AI smoke returned health/login 200 and AI route 404; legacy counts unchanged and users remain at 3.
 
-Commit/tag: pending final local commit and tag.
+Commit/tag: `f0a6249` / `ai-step6.9`.
+
+### Step 7 - Verification gate
+
+Status: Verified; this pass covers the remaining AI stack in the current repo state.
+
+Files: `backend/tests/*.test.js`, `backend/ai/*.js`, `Frontend/ai-brain.js`, `docs/ai-brain/PROGRESS.md`.
+
+Implemented: full suite verification for the AI stack, the disabled-AI smoke, and the unchanged legacy counts check. This gate confirms the no-side-effect behavior for AI routes, default-off settings, and the existing SOC block/auth logic remains unchanged when `LOCAL_AI_ENABLED=false`.
+
+Checks: `npm test --prefix backend` passes at 66/66; syntax checks pass for the touched JS; smoke check returns health/login 200 and AI route 404; legacy table row counts remain unchanged and users stay at 3.
+
+Commit/tag: pending final Step 7 local tag.
+
+### Step 8 - Final report
+
+Status: Final report document is pending creation; it will summarize the verified state, defaults, limits, manual actions, and rollback path to the baseline snapshot tag.
+
+Commit/tag: pending final Step 8 local tag.
