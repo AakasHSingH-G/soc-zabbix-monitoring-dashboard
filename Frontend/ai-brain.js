@@ -3,14 +3,14 @@
     ai_analysis: 'Attacker and incident analysis',
     ai_chat: 'Ask the Brain (planned)',
     ai_auto_analyze: 'Live triage for HIGH/CRIT incidents (planned)',
-    ai_learning: 'Learning from analyst feedback (planned)',
+    ai_learning: 'Learn from observed outcomes',
     ai_reports: 'Nightly reports (planned)',
     ai_telegram_enrich: 'Telegram follow-up insights (planned)',
     ai_block_dryrun: 'Dry-run (policy gate planned)',
     ai_priority_pause: 'Pause background work during attack bursts (planned)',
   };
   const BOOLEAN_KEYS = Object.keys(SETTING_LABELS);
-  const IMPLEMENTED_FEATURES = new Set(['ai_analysis']);
+  const IMPLEMENTED_FEATURES = new Set(['ai_analysis', 'ai_learning']);
   const NUMBER_LABELS = {
     ai_timeout_sec: ['Timeout', 'seconds'],
     ai_max_tokens: ['Maximum tokens', 'tokens'],
@@ -191,6 +191,11 @@
         <p class="aib-result-meta" id="aibHistoryStatus" aria-live="polite">Loading analysis history...</p>
         <ul class="aib-history-list" id="aibHistoryList"></ul>
       </section>
+      <section class="aib-history-panel" aria-labelledby="aibMetricsHeading">
+        <h3 id="aibMetricsHeading">Prediction accuracy</h3>
+        <p class="aib-result-meta" id="aibMetricsStatus" aria-live="polite">Loading outcome metrics...</p>
+        <ul class="aib-history-list" id="aibMetricsList"></ul>
+      </section>
       <div class="aib-brain-empty"><strong>Local model analysis</strong><p>Analysis runs on the configured loopback llamafile server; on this CPU it may take up to 10 minutes. If the model is unavailable, a clearly labelled rule-based fallback is returned.</p><span>AI output is advisory and requires analyst review.</span></div>
     `;
     panel.querySelector('#aibBrainRefresh')?.addEventListener('click', loadStatus);
@@ -295,7 +300,13 @@
     if (analysis.prediction?.stage) {
       appendTextElement(container, 'p', 'aib-result-meta', `Kill-chain: ${analysis.prediction.stage.current} · MITRE ${analysis.prediction.stage.mitre_key || 'not mapped'} · ${analysis.prediction.stage.progress_pct}%`);
     }
-    if (analysis.prediction) appendTextElement(container, 'p', 'aib-result-meta', `Prediction reliability: experimental · evidence ${analysis.prediction.confidence?.evidence ?? 0}%`);
+    if (analysis.prediction) {
+      const accuracy = analysis.prediction.accuracy;
+      const reliability = !accuracy ? 'not yet measured'
+        : accuracy.n < 30 ? `not enough data (${accuracy.n} evaluated)`
+          : `${accuracy.status} · top-3 ${(accuracy.top3_hit_rate * 100).toFixed(0)}% over ${accuracy.n} outcomes`;
+      appendTextElement(container, 'p', 'aib-result-meta', `Prediction reliability: ${reliability} · evidence ${analysis.prediction.confidence?.evidence ?? 0}%`);
+    }
 
     if (analysis.evidence?.length) {
       appendTextElement(container, 'h3', '', 'Evidence');
@@ -333,6 +344,7 @@
     appendTextElement(container, 'p', 'aib-result-meta', `Engine: ${result.engine || analysis.engine || 'local-ai'} (${result.method || 'rules+stats+llm'}) · LLM: ${result.llm_used === false ? `not used - ${fallbackReason || 'unknown'}` : 'used'} · ${result.latency_ms ?? '--'} ms · ${result.prompt_version || 'attacker-v4'}`);
     appendTextElement(container, 'p', 'aib-disclaimer', 'Predictions are probabilistic estimates. Accuracy is measured on this SOC\'s own history and shown only after enough data. Analyst review required.');
     loadHistory();
+    loadPredictionMetrics();
   }
 
   async function loadHistory() {
@@ -375,6 +387,30 @@
       });
     } catch (error) {
       historyStatus.textContent = error.message || 'Analysis history unavailable.';
+    }
+  }
+
+  async function loadPredictionMetrics() {
+    const metricsStatus = document.getElementById('aibMetricsStatus');
+    const metricsList = document.getElementById('aibMetricsList');
+    if (!metricsStatus || !metricsList || !status?.enabled) return;
+    try {
+      const response = await request('/ai/prediction-metrics');
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Prediction metrics unavailable.');
+      const metrics = payload.metrics || {};
+      metricsStatus.textContent = `${metrics.n || 0} evaluated outcome${metrics.n === 1 ? '' : 's'} · ${String(metrics.status || 'not_enough_data').replace(/_/g, ' ')}`;
+      metricsList.replaceChildren();
+      if (metrics.top1_hit_rate == null) {
+        appendTextElement(metricsList, 'li', '', 'Not enough matured outcomes to calculate accuracy.');
+      } else {
+        appendTextElement(metricsList, 'li', '', `Top-1 ${Math.round(metrics.top1_hit_rate * 100)}% · top-3 ${Math.round(metrics.top3_hit_rate * 100)}%`);
+        appendTextElement(metricsList, 'li', '', `Baselines: repeat-last ${Math.round(metrics.baseline_repeat_last * 100)}% · most-common ${Math.round(metrics.baseline_most_common * 100)}%`);
+        appendTextElement(metricsList, 'li', '', `Brier score ${metrics.brier_score.toFixed(3)} · calibration gap ${Math.round(metrics.calibration_gap * 100)}%`);
+      }
+    } catch (error) {
+      metricsStatus.textContent = error.message || 'Prediction metrics unavailable.';
+      metricsList.replaceChildren();
     }
   }
 
@@ -478,7 +514,7 @@
       document.getElementById('aibLatency').textContent = `Latency: ${statusData.provider?.latency_ms == null ? '--' : `${statusData.provider.latency_ms} ms`}`;
       document.getElementById('aibQueueStatus').textContent = `Queue: ${statusData.queue?.pending || 0} pending / ${statusData.queue?.running || 0} running`;
       fillSettings(settingsData.settings || statusData.settings || {});
-      await loadHistory();
+      await Promise.all([loadHistory(), loadPredictionMetrics()]);
     } catch (error) {
       setStatus(error.message || 'AI status unavailable.', 'error');
     } finally {

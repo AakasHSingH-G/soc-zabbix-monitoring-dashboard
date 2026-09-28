@@ -9,6 +9,14 @@ const { extractJsonResponse } = require('./think-parser');
 const { ANALYSIS_SCHEMA, groundAnalysis, validateAnalysis } = require('./validator');
 const { createAttackerFallback } = require('./fallback');
 const {
+  applyLearnedWeights,
+  calibratePrediction,
+  evaluatePendingPredictions,
+  initializeAccuracyTables,
+  readPredictionMetrics,
+  recordPrediction,
+} = require('./accuracy');
+const {
   findCampaignSiblings,
   initializePredictorTables,
   persistProfile,
@@ -287,7 +295,18 @@ function createLocalAi({ db, config, requireAdmin, requireAnalyst, writeAuditLog
           const prediction = predictNextAttacks(ip, context.events, context.incidents, campaign, { priors, mitreMap });
           await persistTimeline(db, ip, context.events);
           await persistProfile(db, ip, prediction.features);
-          analysis = { ...analysis, prediction, recommendation_items: prediction.recommendations };
+          let accuracyPrediction = prediction;
+          try {
+            const learningEnabled = currentSettings.ai_learning === 'true';
+            await evaluatePendingPredictions(db, { learningEnabled });
+            accuracyPrediction = await applyLearnedWeights(db, ip, accuracyPrediction, learningEnabled);
+            accuracyPrediction = await calibratePrediction(db, accuracyPrediction);
+            await recordPrediction(db, ip, accuracyPrediction);
+            accuracyPrediction.accuracy = await readPredictionMetrics(db);
+          } catch (error) {
+            console.warn('[Local AI] prediction accuracy update failed:', error.message);
+          }
+          analysis = { ...analysis, prediction: accuracyPrediction, recommendation_items: accuracyPrediction.recommendations };
 
           const latencyMs = Date.now() - startedAt;
           const saved = await dbRun(
@@ -383,6 +402,18 @@ function createLocalAi({ db, config, requireAdmin, requireAnalyst, writeAuditLog
     }
   });
 
+  router.get('/prediction-metrics', requireAnalyst, async (req, res) => {
+    try {
+      res.set('Cache-Control', 'no-store');
+      const settings = await readSettings();
+      const evaluated = await evaluatePendingPredictions(db, { learningEnabled: settings.ai_learning === 'true' });
+      res.json({ metrics: await readPredictionMetrics(db), evaluated });
+    } catch (error) {
+      console.warn('[Local AI] prediction metrics read failed:', error.message);
+      res.status(503).json({ error: 'Prediction metrics are temporarily unavailable' });
+    }
+  });
+
   router.put('/settings', requireAdmin, async (req, res) => {
     const input = req.body?.settings || req.body;
     const validation = validateSettings(input);
@@ -439,6 +470,7 @@ function createLocalAi({ db, config, requireAdmin, requireAnalyst, writeAuditLog
     )`);
     await ensureFallbackReasonColumn(db);
     await initializePredictorTables(db);
+    await initializeAccuracyTables(db);
     const timestamp = new Date().toISOString();
     for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
       await dbRun(

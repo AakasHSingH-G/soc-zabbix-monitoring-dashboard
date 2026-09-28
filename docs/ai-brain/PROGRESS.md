@@ -111,8 +111,20 @@ Checks: full suite 54/54; syntax checks pass; S1-S13 exact top-action/window fix
 
 Limitations: current security event schema does not provide ASN or reliable username fields, so campaign correlation is same-/24 only and username classes are best-effort sanitized text classifications. KEV/CVE matching is signature-pattern-only until an authoritative intel mapping is available. Learning, calibration, backtests and outcome tracking are Step 5.
 
-Commit/tag: pending.
+Commit/tag: `ai-step4` verified (tagged commit `eb0dae1`).
 
-### Steps 5-8
+### Step 5 - Prediction Accuracy and Outcome Learning
+
+Status: Implemented; advisory-only, with learning disabled by default.
+
+Files: `backend/ai/accuracy.js`, `backend/ai/local-ai.js`, `backend/ai/predictor.js`, `backend/tests/prediction-accuracy.test.js`, `backend/tests/local-ai.test.js`, `Frontend/ai-brain.js`.
+
+Implemented: predictions and outcomes persist separately; matured outcomes are evaluated idempotently within each prediction's own time window, including hit, miss, and no-activity states. Historical metrics include top-1/top-3 hit rates, Brier score, calibration gap, and repeat-last/most-common baselines. Calibration uses both positive and negative observed outcomes; per-IP transition counts cap at 5 and learned influence at 0.7. `ai_learning` defaults off. Analysts can view metrics through the protected `/api/ai/prediction-metrics` endpoint and AI Brain panel; reliability remains “not enough data” below 30 outcomes and is marked reliable only when top-3 beats both baselines.
+
+Checks: `npm test --prefix backend` passes 57/57; syntax checks pass for all touched JavaScript files; `git diff --check` passes. Local AI integration tests verify prediction recording, metrics response, and analyst-only access.
+
+Limitations: outcomes mature when analysis runs or the metrics endpoint is read; no background evaluator is scheduled. The learning toggle trains only from observed telemetry outcomes, not analyst feedback. Commit/tag: not committed; existing `ai-step4` tag verified.
+
+### Steps 6-8
 
 Status: Not started. Update after each completed step with files, tests, commit/tag, and open issues.

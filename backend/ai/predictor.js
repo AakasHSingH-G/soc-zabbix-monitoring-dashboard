@@ -456,4 +456,4 @@ async function persistTimeline(db, ip, events) {
   return inserted;
 }
 
-module.exports = { buildFeatureVector, classifyPath, classifyUserAgent, detectSignature, findCampaignSiblings, initializePredictorTables, persistProfile, persistTimeline, predictNextAttacks, readMitreMap, readPlaybookPriors, scoreProfiles, timelineRows };
+module.exports = { PRIORS, buildFeatureVector, classifyPath, classifyUserAgent, detectSignature, findCampaignSiblings, initializePredictorTables, persistProfile, persistTimeline, predictNextAttacks, readMitreMap, readPlaybookPriors, scoreProfiles, timelineRows };
