@@ -79,4 +79,16 @@ Step 1 checks: full suite 49/49; frontend/backend syntax checks pass; `LOCAL_AI_
 
 ## Steps 2-8
 
-Status: Not started. Update this section after each completed step with files, checks, commit/tag, and open issues.
+### Step 2 - P1 Standalone Model Test
+
+Status: Tooling/report complete; measurement needs manual run.
+
+Files: `backend/scripts/measure-local-model.js`, `docs/ai-brain/P1_REPORT.md`.
+
+Checks: llamafile help inspected; already-running model verified healthy and bound only to `127.0.0.1:8090`; benchmark request was bounded at 120s and stopped without recording text or usable token/latency metrics. Test suite 49/49, syntax checks pass, disabled-AI smoke passes on a temporary DB, live users=3 and analyses=3. No model defaults changed.
+
+Commit/tag: pending. Open issue: manually run bounded P1 measurement and record first-delta, completion rate, and peak RSS before choosing context/token/event defaults.
+
+### Steps 3-8
+
+Status: Not started. Update after each completed step with files, tests, commit/tag, and open issues.
