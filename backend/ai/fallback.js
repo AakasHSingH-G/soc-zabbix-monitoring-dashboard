@@ -1,3 +1,5 @@
+const { predictNextAttacks } = require('./predictor');
+
 function createAttackerFallback(ip, events, incidents = [], fallbackReason = '') {
   const levels = { LOW: 1, MED: 2, HIGH: 3, CRIT: 4, DISASTER: 4 };
   const eventCount = events.reduce((total, event) => total + Math.max(1, Number(event.count) || 1), 0);
@@ -69,6 +71,7 @@ function createAttackerFallback(ip, events, incidents = [], fallbackReason = '')
   };
   const allowedReasons = new Set(['ai_disabled', 'offline', 'timeout', 'invalid_json', 'incomplete_think', 'queue_dropped', 'circuit_open', 'unknown']);
   const reason = allowedReasons.has(fallbackReason) ? fallbackReason : 'unknown';
+  const prediction = predictNextAttacks(ip, events, incidents);
 
   return {
     engine: 'predictor-v1',
@@ -101,6 +104,8 @@ function createAttackerFallback(ip, events, incidents = [], fallbackReason = '')
       },
     ],
     recommendations: recommendationMap[signature],
+    prediction,
+    recommendation_items: prediction.recommendations,
     leading_indicators: leadingIndicators,
   };
 }

@@ -47,6 +47,7 @@ async function buildAttackerContext(db, ip) {
       user_agent_class: userAgentClass,
       count: 0,
       ports: [],
+      created_at: event.created_at || null,
     };
     group.count += 1;
     const port = Number(event.dest_port);

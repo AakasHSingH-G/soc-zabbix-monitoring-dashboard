@@ -241,6 +241,9 @@ test('enabled Local AI queues attacker analysis through the local model and stor
     assert.equal(job.result.source, 'local-ai');
     assert.equal(job.result.analysis.stage, 'Reconnaissance');
     assert.equal(job.result.analysis.confidence, 82);
+    assert.equal(job.result.analysis.prediction.signature, 'S2');
+    assert.equal(job.result.engine, 'predictor-v1');
+    assert.ok(job.result.analysis.recommendation_items.length > 0);
     assert.equal(modelRequest.model, 'soc-brain');
     assert.equal(modelRequest.response_format.type, 'json_schema');
     assert.equal(modelRequest.response_format.json_schema.name, 'attacker_analysis');
@@ -259,6 +262,14 @@ test('enabled Local AI queues attacker analysis through the local model and stor
     const legacyItem = history.items.find(item => item.prompt_version === 'attacker-v1');
     assert.equal(legacyItem.legacy, true);
     assert.equal(legacyItem.result.summary, 'legacy saved analysis');
+    const predictorTables = await new Promise((resolve, reject) => db.all(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('ai_ip_timeline', 'ai_attacker_profiles', 'ai_playbook_priors', 'ai_mitre_map') ORDER BY name",
+      [],
+      (error, rows) => error ? reject(error) : resolve(rows.map(row => row.name))
+    ));
+    assert.deepEqual(predictorTables, ['ai_attacker_profiles', 'ai_ip_timeline', 'ai_mitre_map', 'ai_playbook_priors']);
+    const timelineCount = await new Promise((resolve, reject) => db.get('SELECT COUNT(*) AS total FROM ai_ip_timeline WHERE ip = ?', ['203.0.113.7'], (error, row) => error ? reject(error) : resolve(row.total)));
+    assert.equal(timelineCount, 1);
   } finally {
     if (apiServer) await new Promise(resolve => apiServer.close(resolve));
     await new Promise(resolve => modelServer.close(resolve));

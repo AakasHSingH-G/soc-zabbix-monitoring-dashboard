@@ -8,6 +8,15 @@ const { completeChat } = require('./llm-client');
 const { extractJsonResponse } = require('./think-parser');
 const { ANALYSIS_SCHEMA, groundAnalysis, validateAnalysis } = require('./validator');
 const { createAttackerFallback } = require('./fallback');
+const {
+  findCampaignSiblings,
+  initializePredictorTables,
+  persistProfile,
+  persistTimeline,
+  predictNextAttacks,
+  readMitreMap,
+  readPlaybookPriors,
+} = require('./predictor');
 
 const PROMPT_VERSION = 'attacker-v4';
 const ATTACKER_PROMPT = fs.readFileSync(path.join(__dirname, 'prompts', 'attacker.txt'), 'utf8');
@@ -273,6 +282,13 @@ function createLocalAi({ db, config, requireAdmin, requireAnalyst, writeAuditLog
             analysis = createAttackerFallback(ip, context.events, context.incidents, fallbackReason);
           }
 
+          const campaign = await findCampaignSiblings(db, ip, context.events);
+          const [priors, mitreMap] = await Promise.all([readPlaybookPriors(db), readMitreMap(db)]);
+          const prediction = predictNextAttacks(ip, context.events, context.incidents, campaign, { priors, mitreMap });
+          await persistTimeline(db, ip, context.events);
+          await persistProfile(db, ip, prediction.features);
+          analysis = { ...analysis, prediction, recommendation_items: prediction.recommendations };
+
           const latencyMs = Date.now() - startedAt;
           const saved = await dbRun(
             `INSERT INTO ai_analyses (attacker_ip, result_json, source, status, prompt_version, model, latency_ms, created_at, fallback_reason)
@@ -283,7 +299,7 @@ function createLocalAi({ db, config, requireAdmin, requireAnalyst, writeAuditLog
             analysis_id: saved.lastID,
             attacker_ip: ip,
             source,
-            engine: source === 'fallback' ? 'predictor-v1' : 'local-ai',
+            engine: 'predictor-v1',
             method: source === 'fallback' ? 'rules+stats' : 'rules+stats+llm',
             llm_used: source === 'local-ai',
             fallback_reason: fallbackReason,
@@ -422,6 +438,7 @@ function createLocalAi({ db, config, requireAdmin, requireAnalyst, writeAuditLog
       fallback_reason TEXT
     )`);
     await ensureFallbackReasonColumn(db);
+    await initializePredictorTables(db);
     const timestamp = new Date().toISOString();
     for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
       await dbRun(

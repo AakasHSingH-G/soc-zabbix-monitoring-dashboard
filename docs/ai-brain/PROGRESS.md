@@ -99,4 +99,20 @@ Checks: full suite 49/49; frontend/backend syntax checks pass; disabled-AI smoke
 
 ### Steps 4-8
 
+### Step 4 - Deterministic Prediction Engine
+
+Status: Implemented and verified. Predictor is advisory-only and does not invoke block controls.
+
+Files: `backend/ai/predictor.js`, `backend/ai/local-ai.js`, `backend/ai/fallback.js`, `backend/ai/context-builders.js`, `Frontend/ai-brain.js`, `backend/tests/predictor.test.js`, `backend/tests/local-ai.test.js`.
+
+Implemented: sanitized feature vectors with port/service/path/UA/auth/timing/history enums/counters; S1-S13 seeded priors; bounded top-3 action/window predictions; mindset/profile scores with evidence; stage/MITRE table lookup; structured recommendation templates; campaign matching across bounded same-/24 event data; sanitized timeline and profile persistence. Existing result fields are retained for compatibility; Layer A is attached separately and used for current UI prediction output.
+
+Checks: full suite 54/54; syntax checks pass; S1-S13 exact top-action/window fixtures, probability bounds, insufficient-pattern output, feature privacy, timeline idempotence, and five-sibling campaign test pass; mocked-LLM integration attaches Layer A; disabled-AI smoke passes on a temp DB; live table counts users=3 and analyses=3. `ai_ip_timeline` is not created in the live DB while AI is disabled.
+
+Limitations: current security event schema does not provide ASN or reliable username fields, so campaign correlation is same-/24 only and username classes are best-effort sanitized text classifications. KEV/CVE matching is signature-pattern-only until an authoritative intel mapping is available. Learning, calibration, backtests and outcome tracking are Step 5.
+
+Commit/tag: pending.
+
+### Steps 5-8
+
 Status: Not started. Update after each completed step with files, tests, commit/tag, and open issues.

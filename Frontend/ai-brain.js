@@ -267,7 +267,9 @@
     appendTextElement(heading, 'span', result.source === 'fallback' ? 'aib-source-badge is-fallback' : 'aib-source-badge', result.source === 'fallback' ? 'DETERMINISTIC PREDICTOR' : 'LOCAL AI');
     appendTextElement(heading, 'span', 'aib-chip', analysis.stage || 'Unknown');
     appendTextElement(heading, 'span', 'aib-chip', analysis.severity || 'Unknown');
-    if (analysis.signature) appendTextElement(heading, 'span', 'aib-chip', analysis.signature.replace(/_/g, ' '));
+    const displayedSignature = analysis.prediction?.signature || analysis.signature;
+    if (displayedSignature) appendTextElement(heading, 'span', 'aib-chip', displayedSignature.replace(/_/g, ' '));
+    analysis.prediction?.profile?.top?.forEach(profile => appendTextElement(heading, 'span', 'aib-chip', `${profile.key.replace(/_/g, ' ')} ${profile.score}`));
     container.appendChild(heading);
     appendTextElement(container, 'p', 'aib-result-summary', analysis.summary || 'No summary available.');
     const confidence = appendTextElement(container, 'p', 'aib-confidence', result.source === 'fallback'
@@ -281,6 +283,20 @@
       appendTextElement(container, 'p', 'aib-result-error', `LLM narrative unavailable: ${fallbackReason}`);
     }
 
+    if (analysis.prediction?.mindset) {
+      appendTextElement(container, 'h3', '', 'Mindset signals');
+      const mindsetList = document.createElement('ul');
+      Object.entries(analysis.prediction.mindset).forEach(([key, attribute]) => {
+        const item = appendTextElement(mindsetList, 'li', '', `${key}: ${attribute.value}${attribute.reasons?.length ? ` · evidence: ${attribute.reasons.join(', ')}` : ''}`);
+        item.title = attribute.reasons?.join(', ') || '';
+      });
+      if (mindsetList.childElementCount) container.appendChild(mindsetList);
+    }
+    if (analysis.prediction?.stage) {
+      appendTextElement(container, 'p', 'aib-result-meta', `Kill-chain: ${analysis.prediction.stage.current} · MITRE ${analysis.prediction.stage.mitre_key || 'not mapped'} · ${analysis.prediction.stage.progress_pct}%`);
+    }
+    if (analysis.prediction) appendTextElement(container, 'p', 'aib-result-meta', `Prediction reliability: experimental · evidence ${analysis.prediction.confidence?.evidence ?? 0}%`);
+
     if (analysis.evidence?.length) {
       appendTextElement(container, 'h3', '', 'Evidence');
       const evidenceList = document.createElement('ul');
@@ -293,12 +309,29 @@
       analysis.next_steps.forEach(item => appendTextElement(steps, 'li', '', `${item.step}${item.reason ? `: ${item.reason}` : ''}`));
       container.appendChild(steps);
     }
-    if (analysis.recommendations?.length) {
+    if (analysis.prediction?.predictions?.length) {
+      appendTextElement(container, 'h3', '', 'Predicted next moves');
+      const predictionList = document.createElement('ul');
+      analysis.prediction.predictions.slice(0, 3).forEach(item => {
+        appendTextElement(predictionList, 'li', '', `${item.next_action.replace(/_/g, ' ')} · ${(item.probability * 100).toFixed(0)}% · ${item.window} · ${item.likely_target || 'unknown target'}${item.why?.length ? ` · why: ${item.why.join(', ')}` : ''}`);
+      });
+      container.appendChild(predictionList);
+    }
+    if (analysis.prediction?.campaign?.siblings) {
+      const campaign = analysis.prediction.campaign;
+      appendTextElement(container, 'p', 'aib-result-meta', `Campaign ${campaign.id} · ${campaign.siblings} sibling IPs · estimated additional participants: ${campaign.expected_new_ips}`);
+    }
+    if (analysis.recommendation_items?.length) {
+      appendTextElement(container, 'h3', '', 'What to do now');
+      const recommendationList = document.createElement('ul');
+      analysis.recommendation_items.slice(0, 5).forEach(item => appendTextElement(recommendationList, 'li', '', item.text));
+      container.appendChild(recommendationList);
+    } else if (analysis.recommendations?.length) {
       appendTextElement(container, 'h3', '', 'Recommended actions');
       appendTextElement(container, 'p', 'aib-result-meta', analysis.recommendations.map(item => item.replace(/_/g, ' ')).join(' · '));
     }
     appendTextElement(container, 'p', 'aib-result-meta', `Engine: ${result.engine || analysis.engine || 'local-ai'} (${result.method || 'rules+stats+llm'}) · LLM: ${result.llm_used === false ? `not used - ${fallbackReason || 'unknown'}` : 'used'} · ${result.latency_ms ?? '--'} ms · ${result.prompt_version || 'attacker-v4'}`);
-    appendTextElement(container, 'p', 'aib-disclaimer', 'AI-generated. Analyst review required.');
+    appendTextElement(container, 'p', 'aib-disclaimer', 'Predictions are probabilistic estimates. Accuracy is measured on this SOC\'s own history and shown only after enough data. Analyst review required.');
     loadHistory();
   }
 
