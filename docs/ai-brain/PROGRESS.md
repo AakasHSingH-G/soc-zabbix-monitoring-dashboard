@@ -241,6 +241,8 @@ Commit/tag: pending final Step 7 local tag.
 
 ### Step 8 - Final report
 
-Status: Final report document is pending creation; it will summarize the verified state, defaults, limits, manual actions, and rollback path to the baseline snapshot tag.
+Status: Final report document created and committed with the verified defaults, limits, rollback path, and manual actions.
+
+Files: `docs/ai-brain/FINAL_REPORT.md`.
 
 Commit/tag: pending final Step 8 local tag.
