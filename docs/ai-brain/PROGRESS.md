@@ -163,8 +163,20 @@ Implemented: supports top attackers, recent incidents, block history, alert volu
 
 Checks: full backend suite 60/60; syntax and whitespace checks pass; disabled-AI smoke returned health/login 200 and AI route 404; all 21 legacy live-table counts match baseline and users=3.
 
-Commit/tag: pending Step 6.3 close-out.
+Commit/tag: `2c2c302` / `ai-step6.3`.
 
-### Steps 6.4-8
+### Step 6.4 - Incident and Zabbix Explainability
+
+Status: Implemented; explainers are analyst-only and MITRE values are lookup-only.
+
+Files: `backend/ai/local-ai.js`, `backend/tests/local-ai.test.js`, `Frontend/ai-brain.js`, `Frontend/final.html`.
+
+Implemented: incident explanations use incident plus same-IP structured telemetry; Zabbix explanations use the selected API problem and matching local incident when available. Model schema has no MITRE property; any technique-like text is stripped, and the returned technique comes only from `ai_mitre_map` for the derived signature (or null when unmapped). Added Analyze/Explain/Cause Hints/Summary controls non-destructively to existing views; they hide while AI is inactive and re-render when status changes.
+
+Checks: full backend suite 60/60; JavaScript/HTML diagnostics clean; CRLF-aware whitespace check passes; disabled-AI smoke returned health/login 200 and AI route 404; all 21 legacy live-table counts match baseline and users=3.
+
+Commit/tag: pending Step 6.4 close-out.
+
+### Steps 6.5-8
 
 Status: Not started. Implement one scoped sub-step at a time; update this log after each verified commit/tag.

@@ -1336,6 +1336,37 @@
       charts.problemsChart.update('none');
     }
 
+    function makeAIExplainerButton(kind, id, label, mode, target) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'btn btn-secondary btn-sm';
+      button.textContent = label;
+      button.hidden = !window.AIB?.isAvailable?.();
+      button.disabled = button.hidden;
+      button.addEventListener('click', async () => {
+        button.disabled = true;
+        let output = target.querySelector('.aib-inline-explanation');
+        if (!output) {
+          output = document.createElement('p');
+          output.className = 'aib-inline-explanation';
+          target.appendChild(output);
+        }
+        output.textContent = 'Loading AI explanation...';
+        try {
+          const result = await window.AIB.explain(kind, id);
+          const value = mode === 'hints' ? (result.cause_hints || []).join(' · ')
+            : mode === 'all' ? `${result.explanation}${result.cause_hints?.length ? ` · ${result.cause_hints.join(' · ')}` : ''}`
+              : result.explanation;
+          output.textContent = `${value || 'No explanation available.'}${result.mitre_technique ? ` · MITRE ${result.mitre_technique}` : ''}`;
+        } catch (error) {
+          output.textContent = error.message || 'AI explanation unavailable.';
+        } finally {
+          button.disabled = !window.AIB?.isAvailable?.();
+        }
+      });
+      return button;
+    }
+
     function loadRecentProblems() {
       const tbody = document.getElementById('recentProblemsTable');
       tbody.innerHTML = mockProblems.slice(0, 10).map(p => `
@@ -1347,6 +1378,14 @@
       <td><span class="badge badge-${p.acknowledged ? 'success' : 'info'}">${p.acknowledged ? 'Acknowledged' : 'New'}</span></td>
       <td>${!p.acknowledged ? `<button class="btn btn-secondary btn-sm" onclick='ackProblem(${JSON.stringify(p.id)}, this)'>Acknowledge</button>` : ''}</td>
     </tr>`).join('');
+      Array.from(tbody.querySelectorAll('tr')).forEach((row, index) => {
+        const problem = mockProblems[index];
+        const cell = row.lastElementChild;
+        if (!problem || !cell) return;
+        cell.appendChild(makeAIExplainerButton('zabbix', problem.id, 'Explain with AI', 'summary', row));
+        cell.appendChild(makeAIExplainerButton('zabbix', problem.id, 'AI Cause Hints', 'hints', row));
+        cell.appendChild(makeAIExplainerButton('zabbix', problem.id, 'AI Summary', 'all', row));
+      });
     }
 
     async function ackProblem(id, button) {
@@ -3370,11 +3409,21 @@
           </div>
         `;
         grid.appendChild(card);
+        const aiActions = document.createElement('div');
+        aiActions.className = 'ir-ai-actions';
+        aiActions.appendChild(makeAIExplainerButton('incident', inc.id, 'AI Analyze', 'all', card));
+        aiActions.appendChild(makeAIExplainerButton('incident', inc.id, 'Explain with AI', 'summary', card));
+        card.appendChild(aiActions);
       });
     }).catch(() => {
       grid.innerHTML = '<div style="color:#607080;padding:24px">⚠️ Backend offline — could not load incidents</div>';
     });
   }
+
+  window.addEventListener('aib-status-updated', () => {
+    if (document.getElementById('recentProblemsTable')) loadRecentProblems();
+    if (document.getElementById('irCardsGrid')) initIncidents();
+  });
 
   // ── HONEYPOT TELEMETRY ─────────────────────────────────────────
   const HONEY_NODE = { lat: 23.0225, lng: 72.5714, city: 'Ahmedabad', state: 'Gujarat', country: 'India' };

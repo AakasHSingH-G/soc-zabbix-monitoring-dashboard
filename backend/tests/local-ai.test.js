@@ -178,6 +178,7 @@ test('enabled Local AI queues attacker analysis through the local model and stor
       CREATE TABLE security_events (id INTEGER PRIMARY KEY, src_ip TEXT, created_at TEXT, severity TEXT, dest_port INTEGER, rule TEXT, source TEXT, event_source TEXT, user_agent TEXT, description TEXT);
       CREATE TABLE incidents (id TEXT, source_ip TEXT, title TEXT, severity TEXT, rule TEXT, mitre TEXT, stage TEXT, evidence TEXT, created_at TEXT);
       CREATE TABLE blocks (id INTEGER PRIMARY KEY, ip TEXT, reason TEXT, action TEXT, mode TEXT, ttl_seconds INTEGER, created_at TEXT, expires_at TEXT, removed_at TEXT);
+      INSERT INTO incidents VALUES ('incident-1', '203.0.113.7', 'SSH brute force', 'HIGH', 'SSH authentication', 'T9999', 'Credential Access', 'Repeated failed authentication', '2026-09-28T12:00:00.000Z');
       CREATE TABLE ai_analyses (
         id INTEGER PRIMARY KEY AUTOINCREMENT, attacker_ip TEXT NOT NULL, result_json TEXT NOT NULL,
         source TEXT NOT NULL, status TEXT NOT NULL, prompt_version TEXT NOT NULL,
@@ -194,6 +195,8 @@ test('enabled Local AI queues attacker analysis through the local model and stor
       requireAdmin: (req, res, next) => req.user?.role === 'admin' ? next() : res.status(403).json({ error: 'Administrator access required' }),
       requireAnalyst: (req, res, next) => ['admin', 'analyst'].includes(req.user?.role) ? next() : res.status(403).json({ error: 'Analyst access required' }),
       writeAuditLog: async () => {},
+      zabbixApi: { getProblems: async () => ({ zabbix_connected: true, total: 1, problems: [{ eventid: 'event-1', name: 'Zabbix CPU high', host: 'test-host', severityName: 'High', timestamp: '2026-09-28T12:00:00.000Z' }] }) },
+      explainChat: async () => ({ content: JSON.stringify({ summary: 'SSH attempts observed; model says T9999.', cause_hints: ['Potential technique T9999', 'Review port 22 evidence.'], mitre: 'T9999' }) }),
     });
     await localAi.init();
     await localAi.init();
@@ -278,6 +281,19 @@ test('enabled Local AI queues attacker analysis through the local model and stor
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question: 'recent incidents' }),
     })).status, 403);
+    apiRole = 'admin';
+    const incidentExplanationResponse = await fetch(`${apiUrl}/explain/incident/incident-1`, { method: 'POST' });
+    assert.equal(incidentExplanationResponse.status, 200);
+    const incidentExplanation = await incidentExplanationResponse.json();
+    assert.equal(incidentExplanation.mitre_technique, 'T1110');
+    assert.equal(incidentExplanation.llm_used, true);
+    assert.doesNotMatch(incidentExplanation.explanation, /T9999/);
+    assert.doesNotMatch(incidentExplanation.cause_hints.join(' '), /T9999/);
+    const zabbixExplanation = await fetch(`${apiUrl}/explain/zabbix/event-1`, { method: 'POST' });
+    assert.equal(zabbixExplanation.status, 200);
+    assert.equal((await zabbixExplanation.json()).mitre_technique, null);
+    apiRole = 'viewer';
+    assert.equal((await fetch(`${apiUrl}/explain/incident/incident-1`, { method: 'POST' })).status, 403);
     apiRole = 'admin';
     const historyResponse = await fetch(`${apiUrl}/history`);
     const history = await historyResponse.json();

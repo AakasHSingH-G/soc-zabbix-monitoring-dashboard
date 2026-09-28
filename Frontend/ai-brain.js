@@ -619,6 +619,7 @@
         document.getElementById('aibLatency').textContent = 'Latency: --';
         fillSettings({});
         updateRoleState();
+        window.dispatchEvent(new CustomEvent('aib-status-updated'));
         return;
       }
       const statusData = await statusResponse.json();
@@ -631,6 +632,7 @@
       document.getElementById('aibLatency').textContent = `Latency: ${statusData.provider?.latency_ms == null ? '--' : `${statusData.provider.latency_ms} ms`}`;
       document.getElementById('aibQueueStatus').textContent = `Queue: ${statusData.queue?.pending || 0} pending / ${statusData.queue?.running || 0} running`;
       fillSettings(settingsData.settings || statusData.settings || {});
+      window.dispatchEvent(new CustomEvent('aib-status-updated'));
       await Promise.all([loadHistory(), loadPredictionMetrics()]);
     } catch (error) {
       setStatus(error.message || 'AI status unavailable.', 'error');
@@ -687,6 +689,17 @@
       refresh,
       open: () => window.switchMainTab?.('ai_brain', document.getElementById('aibBrainNav'), null),
       analyzeAttacker,
+      isAvailable: () => status?.active === true && settings?.ai_analysis === 'true',
+      explain: async (kind, id) => {
+        if (!window.AIB.isAvailable()) throw new Error('AI explanations are deactivated.');
+        const route = kind === 'incident' ? `/ai/explain/incident/${encodeURIComponent(id)}`
+          : kind === 'zabbix' ? `/ai/explain/zabbix/${encodeURIComponent(id)}` : null;
+        if (!route) throw new Error('Unsupported AI explanation target.');
+        const response = await request(route, { method: 'POST' });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || 'AI explanation unavailable.');
+        return payload;
+      },
       getStatus: () => status,
     };
     document.getElementById('aibBrainNav')?.addEventListener('click', refresh);
