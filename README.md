@@ -9,6 +9,9 @@
 ![SQLite](https://img.shields.io/badge/SQLite-3-003B57?style=for-the-badge&logo=sqlite)
 ![License](https://img.shields.io/badge/license-MIT-c084fc?style=for-the-badge)
 ![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Raspberry%20Pi-E30B5C?style=for-the-badge&logo=raspberrypi)
+![Architecture](https://img.shields.io/badge/Architecture-Event--Driven%20%7C%20WebSockets-blueviolet?style=for-the-badge)
+![AI-Engine](https://img.shields.io/badge/AI--Brain-Qwen%204B%20Air--Gapped-ff007f?style=for-the-badge)
+![Defense](https://img.shields.io/badge/Deception-Honey--Ports%20%26%20Canaries-ff9900?style=for-the-badge)
 ![Status](https://img.shields.io/badge/status-Active-10b981?style=for-the-badge)
 
 > **Real-time SOC dashboard** with Zabbix integration, Wazuh SIEM alerts, MITRE ATT&CK incident tracking, threat intelligence, and network flow visualization — all in one premium dark-themed interface.
@@ -22,6 +25,7 @@
 ## 📋 Table of Contents
 
 - [Overview](#-overview)
+- [Interactive Blueprint & System Flow](#-interactive-blueprint--system-flow)
 - [Features](#-features)
 - [Project Structure](#-project-structure)
 - [Tech Stack](#-tech-stack)
@@ -33,7 +37,6 @@
 - [Default Credentials](#-default-credentials)
 - [Environment Variables](#-environment-variables)
 - [Network Discovery & Alerts](#-network-discovery--new-device-alerts)
-- [Architecture](#-architecture-diagram)
 - [Troubleshooting](#-troubleshooting)
 - [Roadmap](#-roadmap)
 
@@ -432,40 +435,131 @@ Hosts tab automatically refresh
 
 ---
 
-## 🏗️ Architecture Diagram
+## 🏗️ Interactive Blueprint & System Flow
+
+### 🔷 System Architecture Blueprint
+
+```mermaid
+flowchart TD
+    %% Styling Definitions
+    classDef attacker fill:#2d0612,stroke:#f43f5e,stroke-width:2px,color:#fff;
+    classDef decoy fill:#280a3c,stroke:#c084fc,stroke-width:2px,color:#fff;
+    classDef siem fill:#092540,stroke:#38bdf8,stroke-width:2px,color:#fff;
+    classDef backend fill:#022c22,stroke:#10b981,stroke-width:2px,color:#fff;
+    classDef ai fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#fff;
+    classDef ui fill:#18181b,stroke:#22d3ee,stroke-width:2px,color:#fff;
+    classDef action fill:#450a0a,stroke:#fb7185,stroke-width:2px,color:#fff;
+
+    subgraph INGRESS["⚡ INGRESS & ATTACK SURFACE"]
+        ATTACKER["🚨 Threat Actor / Recon Scanner"]:::attacker
+        LAN_HOSTS["🖥️ Network Endpoints & Devices"]:::siem
+    end
+
+    subgraph DECEPTION["🕸️ ACTIVE DECEPTION ENGINE"]
+        HONEYPORT["🍯 Honey-Ports (:2323 / Telnet & SSH Traps)"]:::decoy
+        DECOY_SITE["🛒 E-Commerce Decoy Portal (:8081)"]:::decoy
+        CANARY_FILES["📄 Canary Leaks (backup.sql, config.php.bak)"]:::decoy
+    end
+
+    subgraph TELEMETRY["📊 INFRASTRUCTURE TELEMETRY"]
+        ZABBIX["🔷 Zabbix Server (Host Metrics & JSON-RPC API)"]:::siem
+        WAZUH["🛡️ Wazuh SIEM (Alert Logs & Rule Engine)"]:::siem
+    end
+
+    subgraph SOC_CORE["⚙️ UNIFIED SOC BACKEND (Node.js & SQLite)"]
+        ROUTER["🔀 Event Ingestion & Normalizer"]:::backend
+        EVENT_BUS["📡 WebSocket Real-Time Event Bus (:3001)"]:::backend
+        DB[("💾 SQLite Security Ledger (Events & DNA)")]:::backend
+        POLICY["⛔ Honey-Block Policy & Rate-Limiter"]:::backend
+    end
+
+    subgraph AI_BRAIN["🧠 AIR-GAPPED SOC AI BRAIN"]
+        LLM["🤖 Local Qwen-4B Thinking (Llamafile Runtime)"]:::ai
+        CASE_MEM["📚 Case Memory & Past Verdict Embeddings"]:::ai
+        PREDICTOR["🎯 Next-Attack Deterministic Predictor"]:::ai
+        MITRE_MAP["🗺️ MITRE ATT&CK TTP Correlation Engine"]:::ai
+    end
+
+    subgraph COCKPIT["💻 SOC ANALYST COCKPIT (Frontend)"]
+        DASHBOARD["📊 Live SOC Dashboard (final.html)"]:::ui
+        FLOW_VIEW["🌐 Dynamic Topology & Flow Graph"]:::ui
+        IR_KANBAN["🚨 Incident Triage & Forensics Timeline"]:::ui
+    end
+
+    subgraph REMEDIATION["🛡️ ACTIVE DEFENSE & REMEDIATION"]
+        IP_BLOCK["🚫 Automated Attacker IP Blacklist"]:::action
+        N8N_HOOK["⚡ n8n Incident Response Webhooks"]:::action
+        ALERTS["📢 Security Team Alerts (Telegram / SIEM)"]:::action
+    end
+
+    %% Ingress & Capture
+    ATTACKER ==>|Port Scans & Brute Force| HONEYPORT
+    ATTACKER ==>|Web Probes & SQLi| DECOY_SITE
+    DECOY_SITE -.->|Triggers| CANARY_FILES
+    LAN_HOSTS -->|SNMP / Agent Telemetry| ZABBIX
+
+    %% Pipeline Feeds
+    HONEYPORT -->|High-Fidelity Sensor Hits| ROUTER
+    DECOY_SITE -->|Tamper / Intrusion Events| ROUTER
+    ZABBIX -->|Health & Trigger JSON-RPC| ROUTER
+    WAZUH -->|SIEM Security Log Feed| ROUTER
+
+    %% Backend Processing
+    ROUTER --> EVENT_BUS
+    ROUTER --> DB
+    ROUTER --> POLICY
+
+    %% Live UI Synchronization
+    EVENT_BUS <==>|Live JSON Streams (5s poll)| DASHBOARD
+    EVENT_BUS <==>|Topology Graph Data| FLOW_VIEW
+    EVENT_BUS <==>|Stage Transitions| IR_KANBAN
+
+    %% AI Analysis Loop
+    ROUTER -->|Sanitized Context Vectors| AI_BRAIN
+    LLM <--> CASE_MEM
+    LLM --> PREDICTOR
+    LLM --> MITRE_MAP
+    AI_BRAIN -->|Triage Verdicts & Advice| EVENT_BUS
+
+    %% Mitigation Actions
+    POLICY -->|Firewall Drop Rule| IP_BLOCK
+    POLICY -->|Trigger Workflows| N8N_HOOK
+    EVENT_BUS -->|Urgent Dispatch| ALERTS
+```
+
+---
+
+### 🔄 Dynamic Incident Lifecycle Flow
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    BROWSER (Frontend)                       │
-│  ┌─────────────┐  ┌──────────────┐  ┌──────────────────┐  │
-│  │ final.html  │  │  style.css   │  │   n8n-addon.js   │  │
-│  │  (9 tabs)   │  │ (dark theme) │  │  (automation)    │  │
-│  └──────┬──────┘  └──────────────┘  └──────────────────┘  │
-│         │ HTTP REST + WebSocket                            │
-└─────────┼───────────────────────────────────────────────────┘
-          │
-┌─────────▼───────────────────────────────────────────────────┐
-│              NODE.JS BACKEND (port 3001)                    │
-│                                                             │
-│  server.js ──► CORS ──► Routes:                            │
-│    /api/auth/*         (SQLite login)                       │
-│    /api/users/*        (User CRUD)                          │
-│    /api/security/*     (Wazuh SIEM)                        │
-│    /api/zabbix/*   ──► zabbix-api.js ──► Zabbix Server     │
-│    /api/webhook/*      (Discovery alerts)                   │
-│                                                             │
-│  websocket.js (/ws on port 3001) ──► Browser notifications  │
-│  database.js ──► database.sqlite (users)                   │
-└─────────────────────────────────────────────────────────────┘
-          │                    │
-┌─────────▼──────┐   ┌────────▼────────────┐
-│  Zabbix Server │   │    Wazuh SIEM       │
-│  (Linux VM)    │   │  /var/ossec/logs/   │
-│  port 80       │   │  alerts.json        │
-│                │   │  (optional)         │
-│  Zabbix Agents │   └─────────────────────┘
-│  on all hosts  │
-└────────────────┘
+   [ Threat Reconnaissance ]
+              │
+              ▼
+   ┌───────────────────────┐
+   │ 🍯 Canary Trap Trigger│ ──► Attacker probes Decoy / Honey-Port (:2323)
+   └───────────────────────┘
+              │
+              ▼ (Instant Ingestion < 50ms)
+   ┌───────────────────────┐
+   │ 🔀 Normalization Engine│ ──► Parse headers, source IP, payload, and fingerprint
+   └───────────────────────┘
+              │
+              ├───────────────────────────────┐
+              ▼                               ▼
+   ┌───────────────────────┐       ┌───────────────────────┐
+   │ 🧠 AI Brain Triage    │       │ ⛔ Honey-Block Policy  │
+   │ • MITRE TTP Mapping   │       │ • Rate Limit Check    │
+   │ • Past Case Memory    │       │ • Threat Score Engine │
+   │ • Next Move Predictor │       │ • IP Drop Execution   │
+   └───────────────────────┘       └───────────────────────┘
+              │                               │
+              └───────────────┬───────────────┘
+                              │
+                              ▼ (Live WebSocket Broadcast)
+   ┌─────────────────────────────────────────────────────────────┐
+   │ 💻 SOC Cockpit Display (final.html)                         │
+   │   ⚡ Detected ──► 🔍 Investigated ──► 🛡️ Contained ──► 🎯 Resolved │
+   └─────────────────────────────────────────────────────────────┘
 ```
 
 ---
