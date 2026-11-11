@@ -18,6 +18,14 @@
 > 
 > 🐧 **Platform Compatibility:** Tested and optimized specifically for **Linux** (Kali Linux, Ubuntu, Debian) and **Raspberry Pi** (Raspberry Pi OS / ARM64).
 
+<br/>
+
+<div align="center">
+  <img src="https://raw.githubusercontent.com/AakasHSingH-G/soc-zabbix-monitoring-dashboard/main/assets/soc-blueprint-flow.svg" alt="SOC Architecture Flow Animation" width="100%" />
+</div>
+
+<br/>
+
 </div>
 
 ---
@@ -440,7 +448,7 @@ Hosts tab automatically refresh
 ### ⚡ Live Animated System Blueprint Flow
 
 <div align="center">
-  <img src="./assets/soc-blueprint-flow.svg" alt="SOC Architecture Flow Animation" width="100%" />
+  <img src="https://raw.githubusercontent.com/AakasHSingH-G/soc-zabbix-monitoring-dashboard/main/assets/soc-blueprint-flow.svg" alt="SOC Architecture Flow Animation" width="100%" />
 </div>
 
 <br/>
@@ -501,16 +509,16 @@ flowchart TD
     end
 
     %% Ingress & Capture
-    ATTACKER ==>|Port Scans & Brute Force| HONEYPORT
-    ATTACKER ==>|Web Probes & SQLi| DECOY_SITE
-    DECOY_SITE -.->|Triggers| CANARY_FILES
-    LAN_HOSTS -->|SNMP / Agent Telemetry| ZABBIX
+    ATTACKER -->|"Port Scans & Brute Force"| HONEYPORT
+    ATTACKER -->|"Web Probes & SQLi"| DECOY_SITE
+    DECOY_SITE -.->|"Triggers"| CANARY_FILES
+    LAN_HOSTS -->|"SNMP / Agent Telemetry"| ZABBIX
 
     %% Pipeline Feeds
-    HONEYPORT -->|High-Fidelity Sensor Hits| ROUTER
-    DECOY_SITE -->|Tamper / Intrusion Events| ROUTER
-    ZABBIX -->|Health & Trigger JSON-RPC| ROUTER
-    WAZUH -->|SIEM Security Log Feed| ROUTER
+    HONEYPORT -->|"High-Fidelity Sensor Hits"| ROUTER
+    DECOY_SITE -->|"Tamper / Intrusion Events"| ROUTER
+    ZABBIX -->|"Health & Trigger JSON-RPC"| ROUTER
+    WAZUH -->|"SIEM Security Log Feed"| ROUTER
 
     %% Backend Processing
     ROUTER --> EVENT_BUS
@@ -518,21 +526,21 @@ flowchart TD
     ROUTER --> POLICY
 
     %% Live UI Synchronization
-    EVENT_BUS <==>|Live JSON Streams (5s poll)| DASHBOARD
-    EVENT_BUS <==>|Topology Graph Data| FLOW_VIEW
-    EVENT_BUS <==>|Stage Transitions| IR_KANBAN
+    EVENT_BUS -->|"Live JSON Streams (5s interval)"| DASHBOARD
+    EVENT_BUS -->|"Topology Graph Data"| FLOW_VIEW
+    EVENT_BUS -->|"Stage Transitions"| IR_KANBAN
 
     %% AI Analysis Loop
-    ROUTER -->|Sanitized Context Vectors| AI_BRAIN
-    LLM <--> CASE_MEM
+    ROUTER -->|"Sanitized Context Vectors"| AI_BRAIN
+    LLM --- CASE_MEM
     LLM --> PREDICTOR
     LLM --> MITRE_MAP
-    AI_BRAIN -->|Triage Verdicts & Advice| EVENT_BUS
+    AI_BRAIN -->|"Triage Verdicts & Advice"| EVENT_BUS
 
     %% Mitigation Actions
-    POLICY -->|Firewall Drop Rule| IP_BLOCK
-    POLICY -->|Trigger Workflows| N8N_HOOK
-    EVENT_BUS -->|Urgent Dispatch| ALERTS
+    POLICY -->|"Firewall Drop Rule"| IP_BLOCK
+    POLICY -->|"Trigger Workflows"| N8N_HOOK
+    EVENT_BUS -->|"Urgent Dispatch"| ALERTS
 ```
 
 ---
