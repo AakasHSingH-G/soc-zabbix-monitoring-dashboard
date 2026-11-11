@@ -20,9 +20,7 @@
 
 <br/>
 
-<div align="center">
-  <img src="https://raw.githubusercontent.com/AakasHSingH-G/soc-zabbix-monitoring-dashboard/main/assets/soc-blueprint-flow.svg" alt="SOC Architecture Flow Animation" width="100%" />
-</div>
+<img src="https://raw.githubusercontent.com/AakasHSingH-G/soc-zabbix-monitoring-dashboard/main/assets/soc-blueprint-flow.svg" alt="SOC Architecture Flow Animation" width="100%" />
 
 <br/>
 
@@ -42,7 +40,7 @@
 - [All API Endpoints](#-all-api-endpoints)
 - [Tab Guide](#-tab-guide)
 - [Real Zabbix Connection](#-connecting-real-zabbix-server)
-- [Default Credentials](#-default-credentials)
+- [Authentication & Roles](#-authentication--roles)
 - [Environment Variables](#-environment-variables)
 - [Network Discovery & Alerts](#-network-discovery--new-device-alerts)
 - [Troubleshooting](#-troubleshooting)
@@ -210,12 +208,17 @@ node server.js
 # http://localhost:3001
 ```
 
-**Login karo:**
-- See `backend/.env.example` for required initial credential environment variables. No passwords are included here.
+### 🔑 Initial Access & Roles
 
-### Credential Setup
+The dashboard features built-in Role-Based Access Control (RBAC):
 
-Copy `backend/.env.example` to `backend/.env` and provide `API_KEY`. When `ZABBIX_URL` is configured, provide `ZABBIX_USER` and `ZABBIX_PASS` as well. `INITIAL_ADMIN_PASSWORD`, `INITIAL_ANALYST_PASSWORD`, and `INITIAL_VIEWER_PASSWORD` are required only when initializing an empty users table; `ADMIN_PANEL_PASSWORD` is required only when an admin panel credential must be initialized. Demo login remains disabled by default; enabling it requires the three `DEMO_*_PASSWORD` environment variables. Do not put passwords in source files or documentation.
+| Role | Username | Access Scope |
+| :--- | :--- | :--- |
+| **Admin** | `admin` | Full administrative control, user creation, and AI brain configuration |
+| **Analyst** | `analyst` | Security incident triage, MITRE ATT&CK actions, and threat review |
+| **Viewer** | `viewer` | Read-only host telemetry and live metric graphs |
+
+> 💡 **Setup Tip:** Copy `backend/.env.example` to `backend/.env` to configure your environment keys and credentials before launch.
 ---
 
 ## 🔧 Setup Installer (Windows)
@@ -375,15 +378,15 @@ systemctl start zabbix-agent2
 
 ---
 
-## 🔐 Default Credentials
+## 🔐 Authentication & Roles
 
-| Username | Password | Role | Access |
-|----------|----------|------|--------|
-| `admin` | `see `backend/.env.example`` | **Admin** | Full access (all tabs + user management) |
-| `analyst` | `see `backend/.env.example`` | **Analyst** | Read + acknowledge (no admin tab) |
-| `viewer` | `see `backend/.env.example`` | **Viewer** | Read-only |
+| Role | Default Username | Permissions & Scope |
+| :--- | :--- | :--- |
+| **Security Administrator** | `admin` | Full system access, user management, and AI engine settings |
+| **SOC Tier-2 Analyst** | `analyst` | Threat investigation, MITRE action logging, problem acknowledgment |
+| **SOC Read-Only Viewer** | `viewer` | High-level metrics, health status, and live graph monitoring |
 
-> ⚠️ **Production mein passwords zaroor change karo!** Database mein `database.sqlite` directly edit karo ya API se naya user banao.
+> 🔒 **Security Notice:** Access credentials and API keys are managed strictly via environment variables (`backend/.env`). No sensitive plaintext secrets are stored in version control.
 
 ---
 
