@@ -3155,7 +3155,7 @@ app.post('/api/webhook/new-device', requireWebhookKey, (req, res) => {
 // Serve static files from Frontend directory
 app.use(express.static(path.join(__dirname, '../Frontend')));
 
-// Serve the project PNG logo stored beside the pbl 3 folder.
+// Serve the project PNG logo.
 app.get(['/SOC_logo.png', '/assets/soc-logo.png'], (req, res) => {
   res.sendFile(path.join(__dirname, '../SOC_logo.png'));
 });

@@ -33,7 +33,7 @@ Audits (yes/no only):
 
 Live DB pre-change row-count baseline (read-only): `ai_analyses=3`, `ai_settings=13`, `attack_dna=5`, `attack_dna_observation_baseline=20`, `attack_dna_observations=13`, `attack_graph_node=75`, `audit_log=40`, `automation_events=0`, `blocks=58`, `deception_actions=49`, `decoy_api_route_map=48`, `decoy_api_schema_map=48`, `decoy_integrity_events=32`, `honey_captures=4`, `incidents=757`, `integrations=0`, `managed_hosts=8`, `manual_review_queue=0`, `security_events=963`, `stage_transition_counts=0`, `threat_intel=0`, `threat_intel_state=1`, `users=3`.
 
-External backup: `/home/user/backups/pbl_3-baseline-20260928-062031.tar.gz` (19 MiB; excludes `node_modules`, `*.gguf`, and `llamafile*`).
+External backup: `/home/user/backups/soc-baseline-20260928-062031.tar.gz` (19 MiB; excludes `node_modules`, `*.gguf`, and `llamafile*`).
 
 ### Manual Actions
 

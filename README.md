@@ -131,7 +131,7 @@ Zabbix SOC Dashboard ek **enterprise-grade Security Operations Center** web appl
 ## 📁 Project Structure
 
 ```
-pbl 3/
+soc-zabbix-monitoring-dashboard/
 │
 ├── 📄 README.md                    ← Yeh file (tumhara guide)
 ├── 🔧 setup-zabbix.bat             ← One-click Windows installer
@@ -593,7 +593,7 @@ MIT License — Free to use, modify, and distribute.
 
 <div align="center">
 
-**Built for PBL-3 | Network Monitoring & SOC Platform**
+**Enterprise Network Monitoring & Security Operations Center (SOC) Platform**
 
 🔷 **Zabbix SOC Dashboard v2.0** 🔷
 
