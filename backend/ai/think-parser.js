@@ -1,6 +1,27 @@
+function stripReasoningTags(raw) {
+  if (typeof raw !== 'string') return '';
+  let text = raw.trim();
+  if (!text) return '';
+  const start = text.indexOf('<think>');
+  if (start === -1) return text;
+
+  const end = text.indexOf('</think>', start);
+  if (end >= 0) {
+    return text.slice(end + '</think>'.length).trim();
+  }
+
+  const afterStart = text.slice(start + '<think>'.length);
+  const lineBreak = afterStart.search(/\r?\n\s*\r?\n|\r?\n/);
+  if (lineBreak >= 0) return afterStart.slice(lineBreak + 1).trim();
+
+  return '';
+}
+
 function extractJsonResponse(raw) {
   if (typeof raw !== 'string') return null;
-  let text = raw.trim();
+  let text = stripReasoningTags(raw).trim();
+  if (!text) return null;
+
   const thinkingEnd = text.lastIndexOf('</think>');
   if (thinkingEnd >= 0) text = text.slice(thinkingEnd + '</think>'.length).trim();
   else if (text.includes('<think>')) return null;
@@ -31,4 +52,4 @@ function extractJsonResponse(raw) {
   return null;
 }
 
-module.exports = { extractJsonResponse };
+module.exports = { extractJsonResponse, stripReasoningTags };

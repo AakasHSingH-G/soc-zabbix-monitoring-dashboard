@@ -77,6 +77,21 @@
         <span id="aibQueueStatus">Queue: --</span>
         <button type="button" class="aib-button aib-secondary" id="aibTestNow">Test now</button>
       </div>
+      <fieldset class="aib-fieldset" id="aibProviderSettings">
+        <legend>Additional AI provider</legend>
+        <div class="aib-provider-settings-grid">
+          <label>Mode <select id="aibProviderMode"><option value="local">Local only</option><option value="remote">API first, local fallback</option><option value="review">Local, then API review</option></select></label>
+          <label>OpenAI-compatible API base URL <input id="aibProviderUrl" type="url" maxlength="500" placeholder="https://api.openai.com/v1"></label>
+          <label>Model <input id="aibProviderModel" type="text" maxlength="160" placeholder="model name"></label>
+          <label>API key <input id="aibProviderKey" type="password" maxlength="2048" autocomplete="new-password" placeholder="Leave blank to keep saved key"></label>
+        </div>
+        <div class="aib-provider-settings-actions">
+          <label class="aib-check"><input id="aibProviderClearKey" type="checkbox"> Remove saved key</label>
+          <span class="aib-readonly-note" id="aibProviderKeyStatus">No API key saved; Local AI is active.</span>
+          <button type="button" class="aib-button aib-secondary" id="aibSaveProviderSettings">Save provider</button>
+        </div>
+        <p class="aib-disclaimer">Remote modes send prompts and relevant SOC evidence to the configured API service.</p>
+      </fieldset>
       <fieldset class="aib-fieldset" id="aibFeatureSettings">
         <legend>Features</legend>
         <div class="aib-feature-grid" id="aibFeatureGrid"></div>
@@ -140,6 +155,7 @@
       input.addEventListener('change', () => card.querySelector('#aibSaveSettings').disabled = false);
     });
     card.querySelector('#aibSaveSettings').addEventListener('click', saveSettings);
+    card.querySelector('#aibSaveProviderSettings').addEventListener('click', saveProviderSettings);
     card.querySelector('#aibTestNow').addEventListener('click', loadStatus);
     card.querySelector('#aibOpenBrain').addEventListener('click', () => window.switchMainTab?.('ai_brain', document.getElementById('aibBrainNav'), null));
     document.querySelector('button[onclick*="config"]')?.addEventListener('click', refresh);
@@ -183,9 +199,9 @@
           <input id="aibAttackerIp" type="text" inputmode="text" placeholder="203.0.113.10" autocomplete="off" required>
           <button type="submit" class="aib-button aib-primary" id="aibAnalyzeButton">Analyze attacker</button>
         </form>
-        <form class="aib-analysis-form" id="aibAskForm">
-          <label for="aibAskQuestion">Ask the Brain</label>
-          <textarea id="aibAskQuestion" maxlength="500" rows="2" placeholder="Top attackers in the last day?" required></textarea>
+        <form class="aib-analysis-form aib-chat-form" id="aibAskForm">
+          <div class="aib-chat-question"><label for="aibAskQuestion">Ask the Brain</label>
+          <textarea id="aibAskQuestion" maxlength="500" rows="2" placeholder="Top attackers in the last day?" required></textarea></div>
           <button type="submit" class="aib-button aib-secondary" id="aibAskButton">Ask</button>
         </form>
         <div id="aibAskResult" class="aib-result-meta" aria-live="polite"></div>
@@ -195,7 +211,10 @@
         <div class="aib-analysis-result" id="aibAnalysisResult" aria-live="polite"></div>
       </section>
       <section class="aib-history-panel" aria-labelledby="aibHistoryHeading">
-        <h3 id="aibHistoryHeading">Recent analyses</h3>
+        <div class="aib-history-toolbar">
+          <h3 id="aibHistoryHeading">Recent analyses</h3>
+          <button type="button" class="aib-button aib-secondary" id="aibClearHistory">Clear</button>
+        </div>
         <p class="aib-result-meta" id="aibHistoryStatus" aria-live="polite">Loading analysis history...</p>
         <ul class="aib-history-list" id="aibHistoryList"></ul>
       </section>
@@ -235,9 +254,10 @@
         <ul class="aib-history-list" id="aibLessonsList"></ul>
         <ul class="aib-history-list" id="aibTuningList"></ul>
       </section>
-      <div class="aib-brain-empty"><strong>Local model analysis</strong><p>Analysis runs on the configured loopback llamafile server; on this CPU it may take up to 10 minutes. If the model is unavailable, a clearly labelled rule-based fallback is returned.</p><span>AI output is advisory and requires analyst review.</span></div>
+      <div class="aib-brain-empty"><strong>Local model analysis</strong><p>Analysis runs on the configured loopback model. Remote review is optional and uses the API provider configured by an administrator.</p><span>AI output is advisory and requires analyst review.</span></div>
     `;
     panel.querySelector('#aibBrainRefresh')?.addEventListener('click', loadStatus);
+    panel.querySelector('#aibClearHistory')?.addEventListener('click', clearHistory);
     panel.querySelector('#aibAnalyzeForm')?.addEventListener('submit', event => {
       event.preventDefault();
       analyzeAttacker(panel.querySelector('#aibAttackerIp').value.trim());
@@ -319,13 +339,14 @@
     if (note) note.textContent = admin ? 'Administrator controls' : 'Read-only settings; administrator access is required to change them.';
     const card = document.getElementById('aibConfigCard');
     if (card) {
-      card.querySelectorAll('input, select, #aibSaveSettings').forEach(control => {
+      card.querySelectorAll('input, select, #aibSaveSettings, #aibSaveProviderSettings').forEach(control => {
         if (control.id === 'aibTestNow' || control.id === 'aibOpenBrain') return;
         control.disabled = !admin || !status?.enabled ||
           (control.dataset.setting && !IMPLEMENTED_FEATURES.has(control.dataset.setting)) ||
           ['aibBlockMode', 'aibDryRun'].includes(control.id);
       });
       card.querySelector('#aibSaveSettings').disabled = !admin || !status?.enabled;
+      card.querySelector('#aibSaveProviderSettings').disabled = !admin || !status?.enabled;
     }
     const analyzeButton = document.getElementById('aibAnalyzeButton');
     if (analyzeButton) analyzeButton.disabled = Boolean(activeJobId) || !['admin', 'analyst'].includes(document.getElementById('hUserRole')?.textContent.trim().toLowerCase()) || status?.active !== true || status?.settings?.ai_analysis !== 'true';
@@ -387,7 +408,9 @@
     }
     const heading = document.createElement('div');
     heading.className = 'aib-result-heading';
-    appendTextElement(heading, 'span', result.source === 'fallback' ? 'aib-source-badge is-fallback' : 'aib-source-badge', result.source === 'fallback' ? 'DETERMINISTIC PREDICTOR' : 'LOCAL AI');
+    const sourceLabel = result.source === 'fallback' ? 'DETERMINISTIC PREDICTOR'
+      : result.source === 'remote-ai' ? 'API AI' : result.source === 'reviewed-ai' ? 'LOCAL + API REVIEW' : 'LOCAL AI';
+    appendTextElement(heading, 'span', result.source === 'fallback' ? 'aib-source-badge is-fallback' : 'aib-source-badge', sourceLabel);
     appendTextElement(heading, 'span', 'aib-chip', analysis.stage || 'Unknown');
     appendTextElement(heading, 'span', 'aib-chip', analysis.severity || 'Unknown');
     const displayedSignature = analysis.prediction?.signature || analysis.signature;
@@ -737,6 +760,20 @@
     }
   }
 
+  async function clearHistory() {
+    const list = document.getElementById('aibHistoryList');
+    const historyStatus = document.getElementById('aibHistoryStatus');
+    try {
+      const response = await request('/ai/history/clear', { method: 'POST' });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'History could not be cleared.');
+      list?.replaceChildren();
+      if (historyStatus) historyStatus.textContent = payload.message || 'Recent analysis list cleared from view.';
+    } catch (error) {
+      if (historyStatus) historyStatus.textContent = error.message || 'History could not be cleared.';
+    }
+  }
+
   async function askBrain(question) {
     const result = document.getElementById('aibAskResult');
     const list = document.getElementById('aibAskItems');
@@ -749,7 +786,8 @@
       const response = await request('/ai/ask', { method: 'POST', body: JSON.stringify({ question }) });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || 'Ask the Brain is unavailable.');
-      result.textContent = payload.answer || 'No answer available.';
+      result.textContent = `${payload.provider ? `${payload.provider}: ` : ''}${payload.answer || 'No answer available.'}`;
+      (payload.analyses || []).forEach(item => appendTextElement(list, 'li', '', `${item.provider}: ${item.answer}`.slice(0, 1800)));
       (payload.items || []).slice(0, 50).forEach(item => appendTextElement(list, 'li', '', JSON.stringify(item).slice(0, 1000)));
     } catch (error) {
       result.textContent = error.message || 'Ask the Brain is unavailable.';
@@ -836,7 +874,9 @@
       status = statusData;
       setStatus(statusData.configuration_error || (statusData.state === 'healthy' ? 'Active and online' : statusData.active ? 'Active but offline; fallback mode' : 'Deactivated'), statusData.configuration_error ? 'error' : statusData.state);
       document.getElementById('aibProviderStatus').textContent = `Provider: ${statusData.provider?.status || 'unknown'}`;
-      document.getElementById('aibModelName').textContent = `Model: ${statusData.model || 'unknown'}`;
+      const secondary = statusData.secondary_provider || {};
+      document.getElementById('aibModelName').textContent = `Model: ${secondary.enabled ? secondary.model : statusData.model || 'unknown'}`;
+      if (isAdmin()) await loadProviderSettings();
       document.getElementById('aibLatency').textContent = `Latency: ${statusData.provider?.latency_ms == null ? '--' : `${statusData.provider.latency_ms} ms`}`;
       document.getElementById('aibQueueStatus').textContent = `Queue: ${statusData.queue?.pending || 0} pending / ${statusData.queue?.running || 0} running`;
       fillSettings(settingsData.settings || statusData.settings || {});
@@ -884,6 +924,54 @@
     }
   }
 
+  async function loadProviderSettings() {
+    const response = await request('/ai/provider-settings');
+    const provider = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(provider.error || 'Provider settings are unavailable.');
+    document.getElementById('aibProviderMode').value = provider.mode || 'local';
+    document.getElementById('aibProviderUrl').value = provider.baseUrl || '';
+    document.getElementById('aibProviderModel').value = provider.model || '';
+    document.getElementById('aibProviderKey').value = '';
+    document.getElementById('aibProviderClearKey').checked = false;
+    document.getElementById('aibProviderKeyStatus').textContent = provider.apiKeyConfigured
+      ? 'API key saved encrypted. Leave blank to keep it.'
+      : 'No API key saved; Local AI is active.';
+  }
+
+  async function saveProviderSettings() {
+    if (!isAdmin() || !status?.enabled) return;
+    const button = document.getElementById('aibSaveProviderSettings');
+    const keyStatus = document.getElementById('aibProviderKeyStatus');
+    button.disabled = true;
+    button.textContent = 'Saving...';
+    try {
+      const response = await request('/ai/provider-settings', {
+        method: 'PUT',
+        body: JSON.stringify({
+          mode: document.getElementById('aibProviderMode').value,
+          baseUrl: document.getElementById('aibProviderUrl').value.trim(),
+          model: document.getElementById('aibProviderModel').value.trim(),
+          apiKey: document.getElementById('aibProviderKey').value,
+          clearApiKey: document.getElementById('aibProviderClearKey').checked,
+        }),
+      });
+      const provider = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(provider.error || 'Provider settings were not saved.');
+      document.getElementById('aibProviderKey').value = '';
+      document.getElementById('aibProviderClearKey').checked = false;
+      keyStatus.textContent = provider.apiKeyConfigured
+        ? 'API key saved encrypted. Leave blank to keep it.'
+        : 'No API key saved; Local AI is active.';
+      setStatus('AI provider settings saved.', 'healthy');
+      await loadStatus();
+    } catch (error) {
+      keyStatus.textContent = error.message || 'Provider settings were not saved.';
+    } finally {
+      button.textContent = 'Save provider';
+      updateRoleState();
+    }
+  }
+
   function refresh() {
     updateRoleState();
     loadStatus();
@@ -898,12 +986,15 @@
       open: () => window.switchMainTab?.('ai_brain', document.getElementById('aibBrainNav'), null),
       analyzeAttacker,
       isAvailable: () => status?.active === true && settings?.ai_analysis === 'true',
-      explain: async (kind, id) => {
+      explain: async (kind, id, context = null) => {
         if (!window.AIB.isAvailable()) throw new Error('AI explanations are deactivated.');
         const route = kind === 'incident' ? `/ai/explain/incident/${encodeURIComponent(id)}`
           : kind === 'zabbix' ? `/ai/explain/zabbix/${encodeURIComponent(id)}` : null;
         if (!route) throw new Error('Unsupported AI explanation target.');
-        const response = await request(route, { method: 'POST' });
+        const response = await request(route, {
+          method: 'POST',
+          ...(context ? { body: JSON.stringify({ context }) } : {}),
+        });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(payload.error || 'AI explanation unavailable.');
         return payload;

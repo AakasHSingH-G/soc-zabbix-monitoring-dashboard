@@ -1353,11 +1353,19 @@
         }
         output.textContent = 'Loading AI explanation...';
         try {
-          const result = await window.AIB.explain(kind, id);
-          const value = mode === 'hints' ? (result.cause_hints || []).join(' · ')
-            : mode === 'all' ? `${result.explanation}${result.cause_hints?.length ? ` · ${result.cause_hints.join(' · ')}` : ''}`
-              : result.explanation;
-          output.textContent = `${value || 'No explanation available.'}${result.mitre_technique ? ` · MITRE ${result.mitre_technique}` : ''}`;
+          const result = await window.AIB.explain(kind, id, target.aiContext || null);
+          const hints = Array.isArray(result.cause_hints) ? result.cause_hints : [];
+          const sourceLabel = result.llm_used ? 'AI-generated' : 'Evidence-based fallback';
+          const sections = mode === 'hints'
+            ? [`${sourceLabel} cause hints${hints.length ? `:\n- ${hints.join('\n- ')}` : ': No distinct cause indicators in the available telemetry.'}`]
+            : [`${sourceLabel} explanation: ${result.explanation || 'No explanation available.'}`];
+          if (mode === 'all' && hints.length) sections.push(`Suggested checks:\n- ${hints.join('\n- ')}`);
+          if (mode !== 'hints' && result.target) {
+            const details = [result.target.host && `Host: ${result.target.host}`, result.target.severity && `Severity: ${result.target.severity}`, result.evidence_summary].filter(Boolean);
+            if (details.length) sections.push(details.join(' · '));
+          }
+          if (mode !== 'hints' && result.mitre_technique) sections.push(`MITRE ${result.mitre_technique}`);
+          output.textContent = sections.join('\n\n');
         } catch (error) {
           output.textContent = error.message || 'AI explanation unavailable.';
         } finally {
@@ -1369,7 +1377,15 @@
 
     function loadRecentProblems() {
       const tbody = document.getElementById('recentProblemsTable');
-      tbody.innerHTML = mockProblems.slice(0, 10).map(p => `
+      const visibleProblems = mockProblems.slice(0, 10);
+      if (!visibleProblems.length) {
+        const message = usingMockProblems
+          ? 'Zabbix is unavailable. No recent problem data could be loaded.'
+          : 'No active Zabbix problems.';
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center">${message}</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = visibleProblems.map(p => `
     <tr>
       <td>${fmtDate(p.event_time)}</td>
       <td>${p.hostname}</td>
@@ -1382,6 +1398,13 @@
         const problem = mockProblems[index];
         const cell = row.lastElementChild;
         if (!problem || !cell) return;
+        row.aiContext = {
+          host: problem.hostname,
+          name: problem.problem_name,
+          severity: problem.severity,
+          timestamp: problem.event_time,
+          acknowledged: problem.acknowledged,
+        };
         cell.appendChild(makeAIExplainerButton('zabbix', problem.id, 'Explain with AI', 'summary', row));
         cell.appendChild(makeAIExplainerButton('zabbix', problem.id, 'AI Cause Hints', 'hints', row));
         cell.appendChild(makeAIExplainerButton('zabbix', problem.id, 'AI Summary', 'all', row));

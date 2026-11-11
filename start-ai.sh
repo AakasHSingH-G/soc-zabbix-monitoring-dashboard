@@ -38,7 +38,7 @@ if [ -f "$PID_FILE" ]; then
   rm -f "$PID_FILE"
 fi
 
-nohup "$BINARY_PATH" --server -m "$MODEL_PATH" --host 127.0.0.1 --port "$AI_PORT" --alias "$AI_MODEL" --device none --gpu-layers 0 --reasoning-budget 48 --reasoning-budget-message 'Stop reasoning and emit the required JSON now.' --reasoning-format deepseek -c 4096 >"$LOG_FILE" 2>&1 &
+nohup "$BINARY_PATH" --server -m "$MODEL_PATH" --host 127.0.0.1 --port "$AI_PORT" --alias "$AI_MODEL" --device none --gpu-layers 0 --reasoning off --reasoning-budget 0 --reasoning-format none -c 4096 >"$LOG_FILE" 2>&1 &
 echo "$!" >"$PID_FILE"
 echo "Local AI starting on http://127.0.0.1:$AI_PORT (PID $(cat "$PID_FILE"))."
 echo "Log: $LOG_FILE"

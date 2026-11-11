@@ -35,3 +35,10 @@ Local AI*/*.gguf
 Local AI*/llamafile-*
 Local AI*/ai.pid
 Local AI*/ai.log
+.zabbix-soc.pid
+*.pid
+RPapers/
+*.docx
+*.pdf
+*.zip
+_downloads/

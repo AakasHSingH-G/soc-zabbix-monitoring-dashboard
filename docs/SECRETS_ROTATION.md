@@ -11,6 +11,8 @@ Consumers use the shared `config.apiKey`; there are no per-consumer copies:
 - `backend/decoy-server.js`: sends the configured key on decoy event and route/schema adapter requests.
 - `backend/ai/local-ai.js` and `backend/ai/llm-client.js`: use `LOCAL_AI_API_KEY`, a separate optional local model credential, not `API_KEY`.
 
+Optional external AI provider keys are entered by an administrator in the AI Brain Config panel. They are encrypted in the SQLite database with the installation-specific `backend/.env.ai-provider-key` file; back up and restore both together. The key is never returned by the settings API.
+
 ## User Passwords
 
 Three new random passwords were generated into `~/soc_new_credentials.txt` with mode `600`. `backend/scripts/reset-user-password.js` hashes and updates only the existing admin, analyst, and viewer rows after checking that the users table contains exactly those three accounts. The utility was not run. Current database user count remains three; password rotation remains a manual action.

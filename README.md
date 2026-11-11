@@ -8,9 +8,12 @@
 ![Node.js](https://img.shields.io/badge/Node.js-20.x-339933?style=for-the-badge&logo=nodedotjs)
 ![SQLite](https://img.shields.io/badge/SQLite-3-003B57?style=for-the-badge&logo=sqlite)
 ![License](https://img.shields.io/badge/license-MIT-c084fc?style=for-the-badge)
+![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Raspberry%20Pi-E30B5C?style=for-the-badge&logo=raspberrypi)
 ![Status](https://img.shields.io/badge/status-Active-10b981?style=for-the-badge)
 
 > **Real-time SOC dashboard** with Zabbix integration, Wazuh SIEM alerts, MITRE ATT&CK incident tracking, threat intelligence, and network flow visualization — all in one premium dark-themed interface.
+> 
+> 🐧 **Platform Compatibility:** Tested and optimized specifically for **Linux** (Kali Linux, Ubuntu, Debian) and **Raspberry Pi** (Raspberry Pi OS / ARM64).
 
 </div>
 
@@ -217,7 +220,7 @@ Copy `backend/.env.example` to `backend/.env` and provide `API_KEY`. When `ZABBI
    ✅ npm install (backend dependencies)
    ✅ .env file create
    ✅ Zabbix Agent 2 download + install (Windows x64)
-    ✅ Firewall rules (ports 3001, 10050)
+   ✅ Firewall rules (ports 3001, 10050)
    ✅ Backend server start
    ✅ Browser mein dashboard open
 ```
@@ -392,6 +395,10 @@ DB_PATH=./database.sqlite
 # API Security Key
 API_KEY=CHANGE_ME
 ```
+
+### AI Brain Provider
+
+The bundled loopback model is used by default. Administrators can optionally configure an OpenAI-compatible API base URL, model, and API key in the dashboard Config tab. The available modes are API-first with local fallback, or local analysis followed by API review. Prompts and relevant SOC evidence are sent to the configured API in either remote mode. The API key is encrypted in the database; keep `backend/.env.ai-provider-key` with the database when backing up or moving the installation.
 
 ---
 

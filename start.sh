@@ -12,6 +12,8 @@ LOG="$DIR/.zabbix-soc.log"
 PID_FILE="$DIR/.zabbix-soc.pid"
 AI_PID_FILE="$AI_DIR/ai.pid"
 PORT=3001
+DIRECT_START="${DIRECT_START:-false}"
+SKIP_SETUP="${SKIP_SETUP:-${DIRECT_START:-false}}"
 DECOY_ENABLED="${DECOY_ENABLED:-true}"
 DECOY_PORT="${DECOY_PORT:-8081}"
 HONEYPORT_PORTS="${HONEYPORT_PORTS:-2323}"
@@ -24,7 +26,7 @@ SOC_TARGET_WATCHER="${SOC_TARGET_WATCHER:-true}"
 DECOY_INTEGRITY_WATCHER="${DECOY_INTEGRITY_WATCHER:-true}"
 STOPPING=false
 AI_STARTED_BY_LAUNCHER=false
-export DECOY_ENABLED DECOY_PORT HONEYPORT_PORTS DECEPTION_FREEZE MAX_ROTATIONS_PER_HOUR APPLY_RESPONSE_POLICY APPLY_API_ROTATION APPLY_API_SCHEMA SOC_TARGET_WATCHER DECOY_INTEGRITY_WATCHER
+export DECOY_ENABLED DECOY_PORT HONEYPORT_PORTS DECEPTION_FREEZE MAX_ROTATIONS_PER_HOUR APPLY_RESPONSE_POLICY APPLY_API_ROTATION APPLY_API_SCHEMA SOC_TARGET_WATCHER DECOY_INTEGRITY_WATCHER SKIP_SETUP DIRECT_START
 LAN_IP=$(hostname -I 2>/dev/null | tr ' ' '\n' | awk '$1 ~ /^192\.168\./ || $1 ~ /^10\./ || $1 ~ /^172\./ {print; exit}' || hostname -I 2>/dev/null | awk '{print $1; exit}' || echo '127.0.0.1')
 
 port_is_listening() {
@@ -344,20 +346,23 @@ resolve_service_ports || exit 1
 
 # ── Step 2: Ensure APT tools are available ───────────────────
 step "2/6 — Checking System Requirements"
-
-# Auto-install curl if missing (needed for health-check)
-if ! command -v curl &>/dev/null; then
-    log "curl not found — installing..."
-    $SUDO apt-get update -qq && $SUDO apt-get install -y curl 2>>"$LOG" || \
-    { err "Could not install curl. Check internet connection."; }
+if [ "$SKIP_SETUP" = "true" ]; then
+    ok "Direct start mode enabled: skipping package and system setup."
 else
-    ok "curl is available."
-fi
+    # Auto-install curl if missing (needed for health-check)
+    if ! command -v curl &>/dev/null; then
+        log "curl not found — installing..."
+        $SUDO apt-get update -qq && $SUDO apt-get install -y curl 2>>"$LOG" || \
+        { err "Could not install curl. Check internet connection."; }
+    else
+        ok "curl is available."
+    fi
 
-# Auto-install wget if missing
-if ! command -v wget &>/dev/null; then
-    log "wget not found — installing..."
-    $SUDO apt-get install -y wget 2>>"$LOG" || true
+    # Auto-install wget if missing
+    if ! command -v wget &>/dev/null; then
+        log "wget not found — installing..."
+        $SUDO apt-get install -y wget 2>>"$LOG" || true
+    fi
 fi
 
 # ── Step 3: Ensure Node.js is installed ──────────────────────
@@ -406,42 +411,54 @@ install_node() {
     return 1
 }
 
-if command -v node &>/dev/null; then
-    NODE_VER=$(node --version)
-    ok "Node.js $NODE_VER already installed."
-    # Check minimum version (need >= 14)
-    NODE_MAJOR=$(echo "$NODE_VER" | sed 's/v//' | cut -d. -f1)
-    if [ "$NODE_MAJOR" -lt 14 ]; then
-        warn "Node.js $NODE_VER is too old (need >= v14). Upgrading..."
-        install_node || exit 1
+if [ "$SKIP_SETUP" = "true" ]; then
+    if command -v node &>/dev/null; then
+        ok "Direct start mode: Node.js $(node --version) found."
+    else
+        err "Direct start mode requires Node.js to already be installed. Install Node.js or run without SKIP_SETUP=true."
+        exit 1
     fi
 else
-    install_node || exit 1
-fi
+    if command -v node &>/dev/null; then
+        NODE_VER=$(node --version)
+        ok "Node.js $NODE_VER already installed."
+        # Check minimum version (need >= 14)
+        NODE_MAJOR=$(echo "$NODE_VER" | sed 's/v//' | cut -d. -f1)
+        if [ "$NODE_MAJOR" -lt 14 ]; then
+            warn "Node.js $NODE_VER is too old (need >= v14). Upgrading..."
+            install_node || exit 1
+        fi
+    else
+        install_node || exit 1
+    fi
 
-# Ensure npm is available
-if ! command -v npm &>/dev/null; then
-    log "npm not found — installing..."
-    $SUDO apt-get install -y npm >>"$LOG" 2>&1 || true
+    # Ensure npm is available
+    if ! command -v npm &>/dev/null; then
+        log "npm not found — installing..."
+        $SUDO apt-get install -y npm >>"$LOG" 2>&1 || true
+    fi
+    ok "npm $(npm --version 2>/dev/null || echo 'unknown') ready."
 fi
-ok "npm $(npm --version 2>/dev/null || echo 'unknown') ready."
 
 # ── Step 4: Install Build Tools (for sqlite3 native addon) ───
 step "4/6 — Build Tools & Dependencies"
-
-# build-essential is needed to compile sqlite3 native bindings
-if ! dpkg -l build-essential &>/dev/null 2>&1; then
-    log "Installing build-essential (required for sqlite3)..."
-    $SUDO apt-get install -y build-essential python3 make g++ >>"$LOG" 2>&1 || true
-    ok "Build tools installed."
+if [ "$SKIP_SETUP" = "true" ]; then
+    ok "Direct start mode: build tools retained as-is; no package install attempted."
 else
-    ok "Build tools already present."
-fi
+    # build-essential is needed to compile sqlite3 native bindings
+    if ! dpkg -l build-essential &>/dev/null 2>&1; then
+        log "Installing build-essential (required for sqlite3)..."
+        $SUDO apt-get install -y build-essential python3 make g++ >>"$LOG" 2>&1 || true
+        ok "Build tools installed."
+    else
+        ok "Build tools already present."
+    fi
 
-# libsqlite3-dev for native sqlite3 binding
-if ! dpkg -l libsqlite3-dev &>/dev/null 2>&1; then
-    log "Installing libsqlite3-dev..."
-    $SUDO apt-get install -y libsqlite3-dev >>"$LOG" 2>&1 || true
+    # libsqlite3-dev for native sqlite3 binding
+    if ! dpkg -l libsqlite3-dev &>/dev/null 2>&1; then
+        log "Installing libsqlite3-dev..."
+        $SUDO apt-get install -y libsqlite3-dev >>"$LOG" 2>&1 || true
+    fi
 fi
 
 # ── Step 5: npm install (auto-download all packages) ─────────
@@ -465,7 +482,14 @@ elif [ ! -d "$BACKEND_DIR/node_modules/sqlite3" ]; then
     NEEDS_INSTALL=true
 fi
 
-if [ "$NEEDS_INSTALL" = true ]; then
+if [ "$SKIP_SETUP" = "true" ]; then
+    if [ -d "$BACKEND_DIR/node_modules/express" ] && [ -d "$BACKEND_DIR/node_modules/sqlite3" ]; then
+        ok "Direct start mode: existing backend dependencies detected."
+    else
+        err "Direct start mode requires backend dependencies already installed. Run npm install once or omit SKIP_SETUP=true."
+        exit 1
+    fi
+elif [ "$NEEDS_INSTALL" = true ]; then
     # Set npm cache to writable location
     export npm_config_cache="/tmp/npm-cache-zabbix"
     mkdir -p "$npm_config_cache"

@@ -7,9 +7,65 @@ const os = require('node:os');
 const path = require('node:path');
 const sqlite3 = require('sqlite3').verbose();
 const { createLocalAi, ensureFallbackReasonColumn, isLoopbackUrl, validateSettings } = require('../ai/local-ai');
-const { extractJsonResponse } = require('../ai/think-parser');
+const { extractJsonResponse, stripReasoningTags } = require('../ai/think-parser');
 const { groundAnalysis, validateAnalysis } = require('../ai/validator');
 const { createAttackerFallback } = require('../ai/fallback');
+const { createProviderConfigStore, normalizeBaseUrl } = require('../ai/provider-config');
+const { createProviderCompletion } = require('../ai/provider-router');
+
+test('API provider configuration encrypts keys, preserves blank submissions, and validates URLs', async () => {
+  const db = new sqlite3.Database(':memory:');
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'soc-ai-provider-store-'));
+  const store = createProviderConfigStore(db, { keyPath: path.join(directory, 'key') });
+  try {
+    await store.initialize();
+    assert.equal(normalizeBaseUrl('https://api.example.test/v1/'), 'https://api.example.test/v1');
+    assert.throws(() => normalizeBaseUrl('file:///etc/passwd'), /HTTP or HTTPS/);
+    await store.save({ mode: 'remote', baseUrl: 'https://api.example.test/v1', model: 'model-x', apiKey: 'private-test-key' });
+    const encrypted = await new Promise((resolve, reject) => db.get(
+      'SELECT api_key_encrypted FROM ai_provider_config WHERE id = 1',
+      [],
+      (error, row) => error ? reject(error) : resolve(row.api_key_encrypted)
+    ));
+    assert.doesNotMatch(encrypted, /private-test-key/);
+    assert.equal((await store.read()).apiKey, 'private-test-key');
+    await store.save({ mode: 'review', baseUrl: 'https://api.example.test/v1', model: 'model-y', apiKey: '' });
+    assert.equal((await store.read()).apiKey, 'private-test-key');
+    await store.save({ mode: 'local', clearApiKey: true });
+    assert.equal((await store.read()).apiKeyConfigured, false);
+    assert.equal((await fs.stat(path.join(directory, 'key'))).mode & 0o777, 0o600);
+  } finally {
+    await new Promise(resolve => db.close(resolve));
+    await fs.rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('provider router supports local, remote, review, and remote-failure fallback modes', async () => {
+  let provider = { mode: 'local', apiKey: '', baseUrl: '', model: '' };
+  const calls = [];
+  const complete = async options => {
+    calls.push(options);
+    if (options.config.url === 'https://api.example.test/v1' && provider.mode === 'remote') throw new Error('remote offline');
+    return { content: options.config.url === 'http://127.0.0.1:8090' ? 'Local draft' : 'Corrected draft' };
+  };
+  const route = createProviderCompletion({
+    localConfig: { url: 'http://127.0.0.1:8090', model: 'local-model' },
+    readProviderConfig: async () => provider,
+    localAllowed: true,
+    complete,
+  });
+  const request = { messages: [{ role: 'user', content: 'Question' }] };
+  assert.equal((await route(request)).provider, 'local');
+  provider = { mode: 'remote', apiKey: 'key', baseUrl: 'https://api.example.test/v1', model: 'remote-model' };
+  const remoteFallback = await route(request);
+  assert.equal(remoteFallback.content, 'Local draft');
+  assert.equal(remoteFallback.provider, 'local');
+  provider.mode = 'review';
+  const reviewed = await route(request);
+  assert.equal(reviewed.content, 'Corrected draft');
+  assert.equal(reviewed.provider, 'review');
+  assert.match(calls.at(-1).messages.at(-1).content, /Correct unsupported or inaccurate claims/);
+});
 
 test('Local AI URL accepts HTTP loopback endpoints only', () => {
   assert.equal(isLoopbackUrl('http://127.0.0.1:8090'), true);
@@ -28,6 +84,125 @@ test('Local AI settings accept whitelisted values and enforce bounds', () => {
   assert.match(validateSettings({ ai_timeout_sec: 9 }).error, /10 to 600/);
   assert.match(validateSettings({ ai_block_mode: 'automatic' }).error, /must be off, suggest, or auto_temp/);
   assert.match(validateSettings({ LOCAL_AI_URL: 'http://evil.example' }).error, /not editable/);
+});
+
+test('default chat state is enabled so the local model can answer free-form questions', () => {
+  const { DEFAULT_SETTINGS } = require('../ai/local-ai');
+  assert.equal(DEFAULT_SETTINGS.ai_chat, 'true');
+  assert.equal(DEFAULT_SETTINGS.ai_active, 'true');
+});
+
+test('free-form Ask the Brain falls back to a helpful SOC answer when the local model is unavailable', async () => {
+  const db = new sqlite3.Database(':memory:');
+  const app = express();
+  let apiServer;
+  const localAi = createLocalAi({
+    db,
+    config: { url: 'http://127.0.0.1:65535', model: 'soc-brain', apiKey: '' },
+    requireAdmin: (req, res, next) => ['admin', 'analyst'].includes(req.user?.role) ? next() : res.status(403).json({ error: 'Administrator access required' }),
+    requireAnalyst: (req, res, next) => ['admin', 'analyst'].includes(req.user?.role) ? next() : res.status(403).json({ error: 'Analyst access required' }),
+    writeAuditLog: async () => {},
+    zabbixApi: { getProblems: async () => ({ zabbix_connected: false, problems: [], total: 0 }) },
+    learningBackupDir: await fs.mkdtemp(path.join(os.tmpdir(), 'soc-ai-ask-fallback-')),
+  });
+
+  try {
+    await localAi.init();
+    app.use(express.json());
+    app.use('/api/ai', (req, res, next) => { req.user = { username: 'test-analyst', role: 'analyst' }; next(); }, localAi.router);
+    apiServer = await new Promise(resolve => {
+      const server = app.listen(0, '127.0.0.1', () => resolve(server));
+    });
+
+    const response = await fetch(`http://127.0.0.1:${apiServer.address().port}/api/ai/ask`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: 'hi' }),
+    });
+
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.intent, null);
+    assert.match(payload.answer, /SOC|attacker|incident|help/i);
+  } finally {
+    if (apiServer) await new Promise(resolve => apiServer.close(resolve));
+    await new Promise(resolve => db.close(resolve));
+  }
+});
+
+test('Ask the Brain defaults to local and can submit its draft for API review', async () => {
+  const db = new sqlite3.Database(':memory:');
+  const app = express();
+  let apiServer;
+  let role = 'admin';
+  const calls = [];
+  const providerKeyDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'soc-ai-provider-api-'));
+  const localAi = createLocalAi({
+    db,
+    config: { url: 'http://127.0.0.1:65535', model: 'soc-brain', apiKey: '' },
+    providerKeyPath: path.join(providerKeyDirectory, 'key'),
+    requireAdmin: (req, res, next) => role === 'admin' ? next() : res.status(403).json({ error: 'Administrator access required' }),
+    requireAnalyst: (req, res, next) => ['admin', 'analyst'].includes(role) ? next() : res.status(403).json({ error: 'Analyst access required' }),
+    writeAuditLog: async () => {},
+    complete: async options => {
+      calls.push(options);
+      return { content: options.config.url.startsWith('https://') ? 'Corrected API answer' : 'Local AI draft' };
+    },
+    learningBackupDir: await fs.mkdtemp(path.join(os.tmpdir(), 'soc-ai-ask-provider-')),
+  });
+
+  try {
+    await localAi.init();
+    app.use(express.json());
+    app.use('/api/ai', (req, res, next) => { req.user = { username: `test-${role}`, role }; next(); }, localAi.router);
+    apiServer = await new Promise(resolve => {
+      const server = app.listen(0, '127.0.0.1', () => resolve(server));
+    });
+    const apiUrl = `http://127.0.0.1:${apiServer.address().port}/api/ai`;
+    const askUrl = `${apiUrl}/ask`;
+    role = 'analyst';
+    const localResponse = await fetch(askUrl, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: 'Explain the stored SOC event' }),
+    });
+    const localPayload = await localResponse.json();
+    assert.equal(localPayload.provider, 'Local AI');
+    assert.equal(localPayload.answer, 'Local AI draft');
+    assert.equal(calls.length, 1);
+
+    const forbiddenRead = await fetch(`${apiUrl}/provider-settings`);
+    assert.equal(forbiddenRead.status, 403);
+    role = 'admin';
+    const saveResponse = await fetch(`${apiUrl}/provider-settings`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'review', baseUrl: 'https://api.example.test/v1', model: 'review-model', apiKey: 'api-secret-test-key' }),
+    });
+    assert.equal(saveResponse.status, 200);
+    const savePayload = await saveResponse.json();
+    assert.equal(savePayload.apiKeyConfigured, true);
+    assert.equal(savePayload.apiKey, undefined);
+    const settingsResponse = await fetch(`${apiUrl}/provider-settings`);
+    const settingsPayload = await settingsResponse.json();
+    assert.equal(settingsPayload.apiKeyConfigured, true);
+    assert.doesNotMatch(JSON.stringify(settingsPayload), /api-secret-test-key/);
+
+    role = 'analyst';
+    const reviewedResponse = await fetch(askUrl, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: 'Explain the stored SOC event' }),
+    });
+    const reviewedPayload = await reviewedResponse.json();
+    assert.equal(reviewedPayload.provider, 'Local AI + API review');
+    assert.equal(reviewedPayload.answer, 'Corrected API answer');
+    assert.equal(calls.length, 3);
+    assert.equal(calls[1].config.url, 'http://127.0.0.1:65535');
+    assert.match(calls[2].messages.at(-2).content, /Local AI draft/);
+    assert.equal(calls[2].config.apiKey, 'api-secret-test-key');
+  } finally {
+    if (apiServer) await new Promise(resolve => apiServer.close(resolve));
+    await new Promise(resolve => db.close(resolve));
+    await fs.rm(providerKeyDirectory, { recursive: true, force: true });
+  }
 });
 
 test('fallback reason migration is additive and idempotent for legacy analyses', async () => {
@@ -67,6 +242,7 @@ test('fallback reason migration is additive and idempotent for legacy analyses',
 
 test('Qwen thinking output is removed and only a complete JSON object is parsed', () => {
   assert.deepEqual(extractJsonResponse('<think>reasoning</think>prefix {"stage":"Detected"}'), { stage: 'Detected' });
+  assert.equal(stripReasoningTags('<think>Let me reason\n\nAnswer: hello'), 'Answer: hello');
   assert.equal(extractJsonResponse('<think>unfinished'), null);
   assert.equal(extractJsonResponse('{"stage":"Detected"'), null);
 });
@@ -336,6 +512,14 @@ test('enabled Local AI queues attacker analysis through the local model and stor
     const zabbixExplanation = await fetch(`${apiUrl}/explain/zabbix/event-1`, { method: 'POST' });
     assert.equal(zabbixExplanation.status, 200);
     assert.equal((await zabbixExplanation.json()).mitre_technique, null);
+    const staleZabbixExplanation = await fetch(`${apiUrl}/explain/zabbix/event-stale`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ context: { name: 'Disk space critically low', host: 'test-host', severity: 'Critical' } }),
+    });
+    assert.equal(staleZabbixExplanation.status, 200);
+    const staleZabbixPayload = await staleZabbixExplanation.json();
+    assert.equal(staleZabbixPayload.target.title, 'Disk space critically low');
+    assert.equal(staleZabbixPayload.target.host, 'test-host');
     apiRole = 'viewer';
     assert.equal((await fetch(`${apiUrl}/explain/incident/incident-1`, { method: 'POST' })).status, 403);
     assert.equal((await fetch(`${apiUrl}/intelligence`)).status, 200);
@@ -394,6 +578,9 @@ test('enabled Local AI queues attacker analysis through the local model and stor
     const legacyItem = history.items.find(item => item.prompt_version === 'attacker-v1');
     assert.equal(legacyItem.legacy, true);
     assert.equal(legacyItem.result.summary, 'legacy saved analysis');
+    const clearHistoryResponse = await fetch(`${apiUrl}/history/clear`, { method: 'POST' });
+    assert.equal(clearHistoryResponse.status, 200);
+    assert.equal((await clearHistoryResponse.json()).persisted, false);
     const metricsResponse = await fetch(`${apiUrl}/prediction-metrics`);
     assert.equal(metricsResponse.status, 200);
     const metricsPayload = await metricsResponse.json();

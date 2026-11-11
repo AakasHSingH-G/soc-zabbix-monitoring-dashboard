@@ -63,12 +63,11 @@ module.exports = {
   n8nWebhookSecret: process.env.N8N_WEBHOOK_SECRET || '',
 
   localAi: {
-    enabled: String(process.env.LOCAL_AI_ENABLED || 'false').toLowerCase() === 'true',
+    enabled: String(process.env.LOCAL_AI_ENABLED ?? 'true').toLowerCase() === 'true',
     url: process.env.LOCAL_AI_URL || 'http://127.0.0.1:8090',
     model: process.env.LOCAL_AI_MODEL || 'soc-brain',
     apiKey: process.env.LOCAL_AI_API_KEY || '',
   },
-
   // E-commerce decoy is opt-in and isolated from the existing honey-port module.
   decoy: {
     enabled: String(process.env.DECOY_ENABLED || 'false').toLowerCase() === 'true',
