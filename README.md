@@ -453,95 +453,19 @@ Hosts tab automatically refresh
 
 <br/>
 
-### 🔷 System Topology (Interactive Mermaid Flowchart)
+### 🧩 Architecture Component Matrix
 
-```mermaid
-flowchart TD
-    %% Styling Definitions
-    classDef attacker fill:#2d0612,stroke:#f43f5e,stroke-width:2px,color:#fff;
-    classDef decoy fill:#280a3c,stroke:#c084fc,stroke-width:2px,color:#fff;
-    classDef siem fill:#092540,stroke:#38bdf8,stroke-width:2px,color:#fff;
-    classDef backend fill:#022c22,stroke:#10b981,stroke-width:2px,color:#fff;
-    classDef ai fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#fff;
-    classDef ui fill:#18181b,stroke:#22d3ee,stroke-width:2px,color:#fff;
-    classDef action fill:#450a0a,stroke:#fb7185,stroke-width:2px,color:#fff;
-
-    subgraph INGRESS["⚡ INGRESS & ATTACK SURFACE"]
-        ATTACKER["🚨 Threat Actor / Recon Scanner"]:::attacker
-        LAN_HOSTS["🖥️ Network Endpoints & Devices"]:::siem
-    end
-
-    subgraph DECEPTION["🕸️ ACTIVE DECEPTION ENGINE"]
-        HONEYPORT["🍯 Honey-Ports (:2323 / Telnet & SSH Traps)"]:::decoy
-        DECOY_SITE["🛒 E-Commerce Decoy Portal (:8081)"]:::decoy
-        CANARY_FILES["📄 Canary Leaks (backup.sql, config.php.bak)"]:::decoy
-    end
-
-    subgraph TELEMETRY["📊 INFRASTRUCTURE TELEMETRY"]
-        ZABBIX["🔷 Zabbix Server (Host Metrics & JSON-RPC API)"]:::siem
-        WAZUH["🛡️ Wazuh SIEM (Alert Logs & Rule Engine)"]:::siem
-    end
-
-    subgraph SOC_CORE["⚙️ UNIFIED SOC BACKEND (Node.js & SQLite)"]
-        ROUTER["🔀 Event Ingestion & Normalizer"]:::backend
-        EVENT_BUS["📡 WebSocket Real-Time Event Bus (:3001)"]:::backend
-        DB[("💾 SQLite Security Ledger (Events & DNA)")]:::backend
-        POLICY["⛔ Honey-Block Policy & Rate-Limiter"]:::backend
-    end
-
-    subgraph AI_BRAIN["🧠 AIR-GAPPED SOC AI BRAIN"]
-        LLM["🤖 Local Qwen-4B Thinking (Llamafile Runtime)"]:::ai
-        CASE_MEM["📚 Case Memory & Past Verdict Embeddings"]:::ai
-        PREDICTOR["🎯 Next-Attack Deterministic Predictor"]:::ai
-        MITRE_MAP["🗺️ MITRE ATT&CK TTP Correlation Engine"]:::ai
-    end
-
-    subgraph COCKPIT["💻 SOC ANALYST COCKPIT (Frontend)"]
-        DASHBOARD["📊 Live SOC Dashboard (final.html)"]:::ui
-        FLOW_VIEW["🌐 Dynamic Topology & Flow Graph"]:::ui
-        IR_KANBAN["🚨 Incident Triage & Forensics Timeline"]:::ui
-    end
-
-    subgraph REMEDIATION["🛡️ ACTIVE DEFENSE & REMEDIATION"]
-        IP_BLOCK["🚫 Automated Attacker IP Blacklist"]:::action
-        N8N_HOOK["⚡ n8n Incident Response Webhooks"]:::action
-        ALERTS["📢 Security Team Alerts (Telegram / SIEM)"]:::action
-    end
-
-    %% Ingress & Capture
-    ATTACKER -->|"Port Scans & Brute Force"| HONEYPORT
-    ATTACKER -->|"Web Probes & SQLi"| DECOY_SITE
-    DECOY_SITE -.->|"Triggers"| CANARY_FILES
-    LAN_HOSTS -->|"SNMP / Agent Telemetry"| ZABBIX
-
-    %% Pipeline Feeds
-    HONEYPORT -->|"High-Fidelity Sensor Hits"| ROUTER
-    DECOY_SITE -->|"Tamper / Intrusion Events"| ROUTER
-    ZABBIX -->|"Health & Trigger JSON-RPC"| ROUTER
-    WAZUH -->|"SIEM Security Log Feed"| ROUTER
-
-    %% Backend Processing
-    ROUTER --> EVENT_BUS
-    ROUTER --> DB
-    ROUTER --> POLICY
-
-    %% Live UI Synchronization
-    EVENT_BUS -->|"Live JSON Streams (5s interval)"| DASHBOARD
-    EVENT_BUS -->|"Topology Graph Data"| FLOW_VIEW
-    EVENT_BUS -->|"Stage Transitions"| IR_KANBAN
-
-    %% AI Analysis Loop
-    ROUTER -->|"Sanitized Context Vectors"| AI_BRAIN
-    LLM --- CASE_MEM
-    LLM --> PREDICTOR
-    LLM --> MITRE_MAP
-    AI_BRAIN -->|"Triage Verdicts & Advice"| EVENT_BUS
-
-    %% Mitigation Actions
-    POLICY -->|"Firewall Drop Rule"| IP_BLOCK
-    POLICY -->|"Trigger Workflows"| N8N_HOOK
-    EVENT_BUS -->|"Urgent Dispatch"| ALERTS
-```
+| Module | Protocol / Port | Target / Role | Key Functionality |
+| :--- | :--- | :--- | :--- |
+| **🚨 Attacker Surface** | WAN / LAN Probes | Ingress Recon | Emulates external port scans, brute force, and credential stuffing |
+| **🍯 Honey-Ports** | TCP `:2323` | Deception Trap | High-fidelity fake telnet/SSH trap that instantly flags intruder IP |
+| **🛒 Decoy E-Commerce** | HTTP `:8081` | Synthetic Web App | Decoy storefront with fake admin login (`/admin-login.html`) & canary leaks |
+| **🔷 Zabbix Telemetry** | JSON-RPC (HTTP) | System Monitoring | Monitored hosts, CPU/RAM/Disk metrics, and network interface status |
+| **🛡️ Wazuh SIEM** | JSON Event Stream | Security Correlation| Ingests system logs, classifies severity (CRIT, HIGH, MED, LOW) |
+| **⚙️ SOC Core Engine** | REST & WS `:3001` | Central Broker | Normalizes feeds, updates SQLite ledger, broadcasts live WebSockets |
+| **🧠 Local AI Brain** | Local LLM `:8090` | Air-Gapped Triage | Qwen-4B via Llamafile; predicts next attack moves & case memory |
+| **💻 Analyst Cockpit** | Single-Page Web App| Visualization | Dark-themed UI with live threat feed, MITRE Kanban & topology graph |
+| **🚫 Automated Defense**| Linux `iptables` / Hooks| Mitigation | Auto IP drop rules, threat scoring, and n8n webhook incident dispatch |
 
 ---
 
