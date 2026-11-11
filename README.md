@@ -437,7 +437,15 @@ Hosts tab automatically refresh
 
 ## 🏗️ Interactive Blueprint & System Flow
 
-### 🔷 System Architecture Blueprint
+### ⚡ Live Animated System Blueprint Flow
+
+<div align="center">
+  <img src="./assets/soc-blueprint-flow.svg" alt="SOC Architecture Flow Animation" width="100%" />
+</div>
+
+<br/>
+
+### 🔷 System Topology (Interactive Mermaid Flowchart)
 
 ```mermaid
 flowchart TD
